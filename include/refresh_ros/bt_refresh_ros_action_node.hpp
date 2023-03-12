@@ -29,7 +29,7 @@ namespace BT
                 };
             }
 
-            bool sendGoal(GoalType& goal) override;
+            bool sendGoal(Goal& goal) override;
 
     };
 

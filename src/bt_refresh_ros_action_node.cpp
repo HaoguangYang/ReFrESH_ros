@@ -2,7 +2,7 @@
 
 namespace BT
 {
-    bool ReFRESH_ROS_EX_node::sendGoal(GoalType &goal)
+    bool ReFRESH_ROS_EX_node::sendGoal(Goal &goal)
     {
         if (!getInput<std::string>("action_request", goal.action_request))
         {

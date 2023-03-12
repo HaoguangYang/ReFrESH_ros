@@ -105,7 +105,7 @@ RosActionNode<refresh_ros::FibonacciAction>(handle, name, conf) {}
       OutputPort<int>("result") };
   }
 
-  bool sendGoal(GoalType& goal) override
+  bool sendGoal(Goal& goal) override
   {
     if( !getInput<int>("order", goal.order) )
     {
@@ -117,7 +117,7 @@ RosActionNode<refresh_ros::FibonacciAction>(handle, name, conf) {}
     return true;
   }
 
-  NodeStatus onResult( const ResultTypePtr& res) override
+  NodeStatus onResult( const WrappedResult& res) override
   {
     ROS_INFO("FibonacciAction: result received");
     int fibonacci_result = 0;
@@ -136,7 +136,7 @@ RosActionNode<refresh_ros::FibonacciAction>(handle, name, conf) {}
     }
   }
 
-  virtual NodeStatus onFailedRequest(FailureCause failure) override
+  virtual NodeStatus onFailure(ActionNodeErrorCode failure) override
   {
     ROS_ERROR("FibonacciAction request failed %d", static_cast<int>(failure));
     return NodeStatus::FAILURE;

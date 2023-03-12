@@ -131,6 +131,7 @@ class TaskBehaviortreeEngine
                 std::cout << "Error occured creating tree from file: " << bt_file_ << "! Using an EMPTY TREE instead." << std::endl;
                 tree_ = factory_.createTreeFromText(empty_tree_xml_, blackboard_);
             }
+            terminalStateNotified_ = false;
             status_ = BT::NodeStatus::RUNNING;
             delete(guiTracker_);
             guiTracker_ = new BT::PublisherZMQ(tree_);
@@ -226,6 +227,8 @@ int main(int argc, char **argv)
     bTreeLevel.spin();
 
     /*
+    // Into the class now. No longer needed.
+
     BT::BehaviorTreeFactory factory;
 
     // Register nodes

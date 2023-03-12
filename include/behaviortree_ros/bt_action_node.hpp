@@ -24,6 +24,15 @@
 namespace BT
 {
 
+enum ActionNodeErrorCode{
+  SERVER_UNREACHABLE,
+  SEND_GOAL_TIMEOUT,
+  GOAL_REJECTED_BY_SERVER,
+  ACTION_ABORTED,
+  ACTION_CANCELLED,
+  INVALID_GOAL
+};
+
 /** Helper Node to call an actionlib::SimpleActionClient<>
  * inside a BT::ActionNode.
  *
@@ -31,7 +40,7 @@ namespace BT
  *
  *  - sendGoal
  *  - onResult
- *  - onFailedRequest
+ *  - onFailure
  *  - halt (optionally)
  *
  */
@@ -47,16 +56,16 @@ protected:
 
 public:
 
-  using BaseClass  = RosActionNode<ActionT>;
-  using ActionClientType = actionlib::SimpleActionClient<ActionT>;
   using ActionType = ActionT;
-  using GoalType   = typename ActionT::_action_goal_type::_goal_type;
-  using ResultType = typename ActionT::_action_result_type::_result_type;
-  using ResultTypePtr = typename
+  using ActionClient = actionlib::SimpleActionClient<ActionT>;
+  using BaseClass = RosActionNode<ActionT>;
+  using Goal  = typename ActionT::_action_goal_type::_goal_type;
+  // using Result = typename ActionT::_action_result_type::_result_type;
+  using WrappedResult = typename
                         ActionT::_action_result_type::_result_type::ConstPtr;
-  using FeedbackType = typename
+  using Feedback = typename
                         ActionT::_action_feedback_type::_feedback_type;
-  using FeedbackTypePtr = typename
+  using FeedbackConstPtr = typename
                         ActionT::_action_feedback_type::_feedback_type::ConstPtr;
 
   RosActionNode() = delete;
@@ -70,41 +79,34 @@ public:
     return  {
       InputPort<std::string>("server_name", "name of the Action Server"),
       InputPort<unsigned>("timeout", 500, "timeout to connect (milliseconds)"),
-      OutputPort<FeedbackTypePtr>("feedback", "pointer to action feedback")
+      OutputPort<Feedback>("feedback", "pointer to action feedback")
     };
   }
 
   /// Method called when the Action makes a transition from IDLE to RUNNING.
   /// If it return false, the entire action is immediately aborted, it returns
   /// FAILURE and no request is sent to the server.
-  virtual bool sendGoal(GoalType& goal) = 0;
+  virtual bool sendGoal(Goal& goal) = 0;
 
-  virtual FeedbackTypePtr resultToFeedback(const ResultTypePtr& res)
+  virtual std::unique_ptr<Feedback> resultToFeedback(const WrappedResult& res)
   {
-    return NULL;
+    return nullptr;
   }
 
   /// Method (to be implemented by the user) to receive the reply.
   /// User can decide which NodeStatus it will return (SUCCESS or FAILURE).
-  virtual NodeStatus onResult( const ResultTypePtr& res )
+  virtual NodeStatus onResult( const WrappedResult& result )
   {
     setStatus(NodeStatus::SUCCESS);
-    if (FeedbackTypePtr fb_res = resultToFeedback(res))
-      setOutput("feedback", fb_res);
+    std::unique_ptr<Feedback> fb_res = resultToFeedback(result);
+    if (fb_res != nullptr)
+      setOutput("feedback", *fb_res);
     return NodeStatus::SUCCESS;
   }
 
-  enum FailureCause{
-    MISSING_SERVER = 0,
-    ABORTED_BY_SERVER = 1,
-    REJECTED_BY_SERVER = 2,
-    GOAL_LOST = 3
-  };
-
   /// Called when a service call failed. Can be overriden by the user.
-  virtual NodeStatus onFailedRequest(FailureCause failure)
+  virtual NodeStatus onFailure(ActionNodeErrorCode failure)
   {
-    setStatus(NodeStatus::FAILURE);
     return NodeStatus::FAILURE;
   }
 
@@ -118,11 +120,10 @@ public:
     {
       action_client_->cancelGoal();
     }
-    setStatus(NodeStatus::IDLE);
   }
 
   void onResultCb(const actionlib::SimpleClientGoalState& state,
-                  const ResultTypePtr& res)
+                  const WrappedResult& res)
   {
     switch (state.state_)
     {
@@ -132,19 +133,19 @@ public:
         break;
 
       case actionlib::SimpleClientGoalState::RECALLED:
-        setStatus(NodeStatus::IDLE);
+        setStatus(onFailure( ACTION_CANCELLED ));
         break;
       
       case actionlib::SimpleClientGoalState::ABORTED:
-        setStatus(onFailedRequest( ABORTED_BY_SERVER ));
+        setStatus(onFailure( ACTION_ABORTED ));
         break;
       
       case actionlib::SimpleClientGoalState::REJECTED:
-        setStatus(onFailedRequest( REJECTED_BY_SERVER ));
+        setStatus(onFailure( GOAL_REJECTED_BY_SERVER ));
         break;
 
       case actionlib::SimpleClientGoalState::LOST:
-        setStatus(onFailedRequest( GOAL_LOST ));
+        setStatus(onFailure( INVALID_GOAL ));
         break;
       
       default:
@@ -155,14 +156,14 @@ public:
 
   inline void onActiveCb(void){ setStatus(NodeStatus::RUNNING); }
   
-  inline void onFeedbackCb(const FeedbackTypePtr& fb)
+  inline void onFeedbackCb(const FeedbackConstPtr& fb)
   {
-    setOutput("feedback", fb);
+    setOutput("feedback", *fb);
   }
 
 protected:
 
-  std::shared_ptr<ActionClientType> action_client_;
+  std::shared_ptr<ActionClient> action_client_;
 
   ros::NodeHandle& node_;
 
@@ -176,7 +177,7 @@ protected:
           throw(BT::RuntimeError(
             "ROS Action Node missing required input [server_name]: ",
             inRes.error()));
-      action_client_ = std::make_shared<ActionClientType>
+      action_client_ = std::make_shared<ActionClient>
                         ( node_, server_name, true );
       unsigned msec = getInput<unsigned>("timeout").value();
       ros::Duration timeout(static_cast<double>(msec) * 1e-3);
@@ -185,13 +186,13 @@ protected:
       if( !connected ){
         connected = action_client_->waitForServer(timeout);
         if( !connected )
-          return onFailedRequest(MISSING_SERVER);
+          return onFailure(SERVER_UNREACHABLE);
       }
       
       // setting the status to RUNNING to notify the BT Loggers (if any)
       setStatus(NodeStatus::RUNNING);
 
-      GoalType goal;
+      Goal goal;
       bool valid_goal = sendGoal(goal);
       if( !valid_goal )
       {
@@ -222,15 +223,15 @@ protected:
         break;
       
       case actionlib::SimpleClientGoalState::ABORTED:
-        setStatus(onFailedRequest( ABORTED_BY_SERVER ));
+        setStatus(onFailure( ACTION_ABORTED ));
         break;
       
       case actionlib::SimpleClientGoalState::REJECTED:
-        setStatus(onFailedRequest( REJECTED_BY_SERVER ));
+        setStatus(onFailure( GOAL_REJECTED_BY_SERVER ));
         break;
 
       case actionlib::SimpleClientGoalState::LOST:
-        setStatus(onFailedRequest( GOAL_LOST ));
+        setStatus(onFailure( GOAL_LOST ));
         break;
       
       default:
@@ -262,7 +263,7 @@ template <class DerivedT> static
   manifest.ports = DerivedT::providedPorts();
   manifest.registration_ID = registration_ID;
   const auto& basic_ports =
-              RosActionNode< typename DerivedT::ActionType>::providedPorts();
+              RosActionNode<typename DerivedT::ActionType>::providedPorts();
   manifest.ports.insert( basic_ports.begin(), basic_ports.end() );
   factory.registerBuilder( manifest, builder );
 }
