@@ -1,117 +1,62 @@
-cmake_minimum_required(VERSION 3.5.1) # version on Ubuntu Trusty
-project(refresh_ros)
+cmake_minimum_required(VERSION 3.16)
+project(refresh_ros2)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-######################################################
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(-Wall -Wextra -Wpedantic)
+endif()
 
-set(ROS_DEPENDENCIES
-    roscpp
-    rospy
-    std_msgs
-    behaviortree_cpp_v3
-    actionlib_msgs
-    actionlib
-    message_generation
-    dynamic_reconfigure)
+find_package(ament_cmake_auto REQUIRED)
+ament_auto_find_build_dependencies()
 
-find_package(catkin REQUIRED COMPONENTS ${ROS_DEPENDENCIES} )
-find_package(GTest)
-
-add_message_files(
-  FILES
-  BehaviorTree.msg
-  NodeParameter.msg
-  NodeStatus.msg
-  StatusChange.msg
-  StatusChangeLog.msg
-  TreeNode.msg
-  ModuleEvaluate.msg
-  ReFRESHrequest.msg
-  ReFRESHtelemetry.msg
+# setup targets
+# generate library
+set(TARGET_LIB_NAME ${PROJECT_NAME}_lib)
+ament_auto_add_library(${TARGET_LIB_NAME}
+  src/bt_refresh_control_node.cpp
+  src/bt_refresh_module_node.cpp
+  src/bt_refresh_ros_action_node.cpp
+  include/refresh_ros2/bt_action_node.hpp
+  include/refresh_ros2/bt_service_node.hpp
+  include/refresh_ros2/bt_subscriber_node.hpp
+  include/refresh_ros2/bt_refresh_control_node.hpp
+  include/refresh_ros2/bt_refresh_module_node.hpp
+  include/refresh_ros2/bt_refresh_ros_action_node.hpp
 )
 
-add_service_files(
-   FILES
-   AddTwoInts.srv
-   ModuleEstimate.srv
-   ModuleControl.srv
- )
-
-add_action_files(
-   DIRECTORY action
-   FILES
-   Fibonacci.action
-   HighLevelRequest.action
+# generate bt task engine node
+ament_auto_add_library(${PROJECT_NAME}_bt_task_engine SHARED
+  src/bt_task_engine.cpp
+)
+rclcpp_components_register_node(${PROJECT_NAME}_bt_task_engine
+  PLUGIN "ReFRESH::BehaviorTreeTaskEngineNode"
+  EXECUTABLE ${PROJECT_NAME}_bt_task_engine_node
 )
 
-catkin_python_setup()
-
-generate_messages(
-  DEPENDENCIES
-  std_msgs
-  actionlib_msgs
-)
-
-#add dynamic reconfigure
-generate_dynamic_reconfigure_options(
-  cfg/TaskBehaviortreeEngine.cfg
-)
-
-catkin_package(
-    INCLUDE_DIRS include
-    LIBRARIES
-    CATKIN_DEPENDS ${ROS_DEPENDENCIES}
-)
-
-include_directories( include ${catkin_INCLUDE_DIRS} )
-
-######################################################
-# Also build LIBRARIES
-
-add_library(ReFRESHmoduleNode src/bt_refresh_module_node.cpp)
-add_dependencies(ReFRESHmoduleNode ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(ReFRESHmoduleNode ${catkin_LIBRARIES})
-
-add_library(ReFRESHactionNode src/bt_refresh_ros_action_node.cpp)
-add_dependencies(ReFRESHactionNode ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(ReFRESHactionNode ${catkin_LIBRARIES})
-
-add_library(ReFRESHcontrolNode src/bt_refresh_control_node.cpp)
-add_dependencies(ReFRESHcontrolNode ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(ReFRESHcontrolNode ${catkin_LIBRARIES})
-
-######################################################
-# Task BT engine
-
-add_executable(ReFRESH_ROS_TaskBT_Engine src/task_bt_engine.cpp)
-add_dependencies(ReFRESH_ROS_TaskBT_Engine ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencfg)
-target_link_libraries(ReFRESH_ROS_TaskBT_Engine
-    ${catkin_LIBRARIES}
-    ReFRESHmoduleNode
-    ReFRESHactionNode
-    ReFRESHcontrolNode
-)
-
-######################################################
 # TESTS
+if(AMENT_ENABLE_TESTING)
+  find_package(ament_lint_auto REQUIRED)
+  # the following line skips the linter which checks for copyrights
+  # comment the line when a copyright and license is added to all source files
+  set(ament_cmake_copyright_FOUND TRUE)
+  # the following line skips cpplint (only works in a git repo)
+  # comment the line when this package is in a git repo and when
+  # a copyright and license is added to all source files
+  set(ament_cmake_cpplint_FOUND TRUE)
+  ament_lint_auto_find_test_dependencies()
 
-add_executable(test_bt test/test_bt.cpp)
-add_dependencies(test_bt ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(test_bt ${catkin_LIBRARIES} )
+  ament_auto_add_executable(sleep_server test/sleep_server.cpp)
+  
+  ament_auto_add_executable(test_client test/test_client.cpp)
+  
+  #ament_auto_add_executable(test_server test/test_server.cpp)
+endif()
 
-add_executable(test_bt_server test/test_server.cpp)
-add_dependencies(test_bt_server ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(test_bt_server ${catkin_LIBRARIES} )
-
-######################################################
 # INSTALL
-
-
-######################################################
-# EXAMPLES and TOOLS
-
-
-
+# Ament package generation and installing. Export information to downstream packages
+ament_auto_package(
+  CONFIG_EXTRAS "${PROJECT_NAME}-extras.cmake"
+)

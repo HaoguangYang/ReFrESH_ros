@@ -1,8 +1,0 @@
-string action_request
-string arguments
----
-ModuleEvaluate estimate
-string explanation
-
-#float32  performanceCost
-#float32  resourceCost
