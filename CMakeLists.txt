@@ -14,8 +14,7 @@ ament_auto_find_build_dependencies()
 
 # setup targets
 # generate library
-set(TARGET_LIB_NAME ${PROJECT_NAME}_lib)
-ament_auto_add_library(${TARGET_LIB_NAME}
+ament_auto_add_library(${PROJECT_NAME}_lib
   src/bt_refresh_control_node.cpp
   src/bt_refresh_module_node.cpp
   src/bt_refresh_ros_action_node.cpp

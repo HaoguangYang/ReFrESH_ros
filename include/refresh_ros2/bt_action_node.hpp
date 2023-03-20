@@ -14,12 +14,12 @@
 
 namespace BT {
 
-struct ActionNodeParams {
+struct RosActionNodeParams {
   std::shared_ptr<rclcpp::Node> nh;
   std::string action_name;
   std::chrono::milliseconds server_timeout;
 
-  ActionNodeParams(const std::shared_ptr<rclcpp::Node>& node, const std::string& action_name = "",
+  RosActionNodeParams(const std::shared_ptr<rclcpp::Node>& node, const std::string& action_name = "",
                    const unsigned int& server_timeout = 0)
       : nh(node), action_name(action_name), server_timeout(server_timeout){};
 };
@@ -50,7 +50,7 @@ class RosActionNode : public ActionNodeBase {
   using WrappedResult = typename rclcpp_action::ClientGoalHandle<ActionT>::WrappedResult;
   using Feedback = typename ActionT::Feedback;
   using FeedbackConstPtr = typename ActionT::Feedback::ConstPtr;
-  using Params = ActionNodeParams;
+  using Params = RosActionNodeParams;
   using Error = ActionNodeErrorCode;
 
   /** You are not supposed to instantiate this class directly, the factory will do it.
@@ -61,7 +61,7 @@ class RosActionNode : public ActionNodeBase {
    * Note that if the external_action_client is not set, the constructor will build its own.
    * */
   explicit RosActionNode(const std::string& instance_name, const NodeConfiguration& conf,
-                         const ActionNodeParams& params,
+                         const RosActionNodeParams& params,
                          typename std::shared_ptr<ActionClient> external_action_client = {});
 
   virtual ~RosActionNode() = default;
@@ -151,7 +151,7 @@ class RosActionNode : public ActionNodeBase {
 template <class DerivedT>
 static void RegisterRosAction(
     BehaviorTreeFactory& factory, const std::string& registration_ID,
-    const ActionNodeParams& params,
+    const RosActionNodeParams& params,
     std::shared_ptr<typename DerivedT::ActionClient> external_client = {}) {
   NodeBuilder builder = [=](const std::string& name, const NodeConfiguration& config) {
     return std::make_unique<DerivedT>(name, config, params, external_client);
@@ -172,7 +172,7 @@ static void RegisterRosAction(
 
 template <class T>
 inline RosActionNode<T>::RosActionNode(
-    const std::string& instance_name, const NodeConfiguration& conf, const ActionNodeParams& params,
+    const std::string& instance_name, const NodeConfiguration& conf, const RosActionNodeParams& params,
     typename std::shared_ptr<ActionClient> external_action_client)
     : ActionNodeBase(instance_name, conf),
       node_(params.nh),

@@ -14,12 +14,12 @@
 
 namespace BT {
 
-struct SubscriberNodeParams {
+struct RosSubscriberNodeParams {
   std::shared_ptr<rclcpp::Node> nh;
   std::string topic_name;
   rclcpp::QoS qos;
 
-  SubscriberNodeParams(const std::shared_ptr<rclcpp::Node>& node,
+  RosSubscriberNodeParams(const std::shared_ptr<rclcpp::Node>& node,
                        const std::string& topic_name = "",
                        const rclcpp::QoS& qos = rclcpp::SensorDataQoS())
       : nh(node), topic_name(topic_name), qos(qos){};
@@ -36,7 +36,7 @@ class RosSubscriberNode : public StatefulActionNode {
  public:
   // Type definitions
   using MessageType = MessageT;
-  using Params = SubscriberNodeParams;
+  using Params = RosSubscriberNodeParams;
   using SubscriberClient = rclcpp::SubscriptionBase;
 
   /** You are not supposed to instantiate this class directly, the factory will do it.
@@ -47,7 +47,7 @@ class RosSubscriberNode : public StatefulActionNode {
    * Note that if the external_subscriber is not set, the constructor will build its own.
    * */
   explicit RosSubscriberNode(const std::string& instance_name, const NodeConfiguration& conf,
-                             const SubscriberNodeParams& params,
+                             const RosSubscriberNodeParams& params,
                              typename std::shared_ptr<SubscriberClient> external_subscriber = {});
 
   virtual ~RosSubscriberNode() = default;
@@ -108,7 +108,7 @@ class RosSubscriberNode : public StatefulActionNode {
 template <class DerivedT>
 static void RegisterRosSubscriber(
     BehaviorTreeFactory& factory, const std::string& registration_ID,
-    const SubscriberNodeParams& params,
+    const RosSubscriberNodeParams& params,
     std::shared_ptr<typename DerivedT::ServiceClient> external_client = {}) {
   NodeBuilder builder = [=](const std::string& name, const NodeConfiguration& config) {
     return std::make_unique<DerivedT>(name, config, params, external_client);
@@ -130,7 +130,7 @@ static void RegisterRosSubscriber(
 template <class T>
 inline RosSubscriberNode<T>::RosSubscriberNode(
     const std::string& instance_name, const NodeConfiguration& conf,
-    const SubscriberNodeParams& params,
+    const RosSubscriberNodeParams& params,
     typename std::shared_ptr<SubscriberClient> external_subscriber)
     : StatefulActionNode(instance_name, conf),
       node_(params.nh),

@@ -14,12 +14,12 @@
 
 namespace BT {
 
-struct ServiceNodeParams {
+struct RosServiceNodeParams {
   std::shared_ptr<rclcpp::Node> nh;
   std::string service_name;
   std::chrono::milliseconds server_timeout;
 
-  ServiceNodeParams(const std::shared_ptr<rclcpp::Node>& node, const std::string& service_name = "",
+  RosServiceNodeParams(const std::shared_ptr<rclcpp::Node>& node, const std::string& service_name = "",
                     const unsigned int& server_timeout = 0)
       : nh(node), service_name(service_name), server_timeout(server_timeout){};
 };
@@ -46,7 +46,7 @@ class RosServiceNode : public SyncActionNode {
   using Request = typename ServiceT::Request;
   using RequestHandle = typename rclcpp::Client<ServiceT>::FutureAndRequestId;
   using Response = typename ServiceT::Response;
-  using Params = ServiceNodeParams;
+  using Params = RosServiceNodeParams;
   using Error = ServiceNodeErrorCode;
 
   /** You are not supposed to instantiate this class directly, the factory will do it.
@@ -57,7 +57,7 @@ class RosServiceNode : public SyncActionNode {
    * Note that if the external_service_client is not set, the constructor will build its own.
    * */
   explicit RosServiceNode(const std::string& instance_name, const NodeConfiguration& conf,
-                          const ServiceNodeParams& params,
+                          const RosServiceNodeParams& params,
                           typename std::shared_ptr<ServiceClient> external_service_client = {});
 
   virtual ~RosServiceNode() = default;
@@ -115,7 +115,7 @@ class RosServiceNode : public SyncActionNode {
 template <class DerivedT>
 static void RegisterRosService(
     BehaviorTreeFactory& factory, const std::string& registration_ID,
-    const ServiceNodeParams& params,
+    const RosServiceNodeParams& params,
     std::shared_ptr<typename DerivedT::ServiceClient> external_client = {}) {
   NodeBuilder builder = [=](const std::string& name, const NodeConfiguration& config) {
     return std::make_unique<DerivedT>(name, config, params, external_client);
@@ -137,7 +137,7 @@ static void RegisterRosService(
 template <class T>
 inline RosServiceNode<T>::RosServiceNode(
     const std::string& instance_name, const NodeConfiguration& conf,
-    const ServiceNodeParams& params,
+    const RosServiceNodeParams& params,
     typename std::shared_ptr<ServiceClient> external_service_client)
     : SyncActionNode(instance_name, conf),
       node_(params.nh),

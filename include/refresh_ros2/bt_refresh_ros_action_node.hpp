@@ -91,7 +91,7 @@ namespace ReFRESH {
 class ReFRESH_ROS_EX_node : public BT::RosActionNode<SelfAdaptiveAction> {
  public:
   ReFRESH_ROS_EX_node(const std::string& instance_name, const BT::NodeConfiguration& conf,
-                      const BT::ActionNodeParams& params,
+                      const BT::RosActionNodeParams& params,
                       typename std::shared_ptr<ActionClient> external_action_client = {})
       : RosActionNode<SelfAdaptiveAction>(instance_name, conf, params, external_action_client) {}
 
@@ -113,7 +113,7 @@ class ReFRESH_ROS_EV_node : public BT::ActionEvaluatorNode<SelfAdaptiveAction> {
 class ReFrESH_ROS_ES_node : public BT::RosServiceNode<SelfAdaptiveActionEstimate> {
  public:
   ReFrESH_ROS_ES_node(const std::string& instance_name, const BT::NodeConfiguration& conf,
-                      const BT::ServiceNodeParams& params,
+                      const BT::RosServiceNodeParams& params,
                       typename std::shared_ptr<ServiceClient> external_service_client = {})
       : RosServiceNode<SelfAdaptiveActionEstimate>(instance_name, conf, params,
                                                    external_service_client) {}
