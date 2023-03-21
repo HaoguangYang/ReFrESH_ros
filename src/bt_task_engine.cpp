@@ -1,6 +1,6 @@
 #include "refresh_ros2/bt_task_engine.hpp"
 
-namespace ReFRESH {
+namespace ReFRESH_BT {
 
 BehaviorTreeTaskEngine::BehaviorTreeTaskEngine(rclcpp::Node *handle) : nh_(handle) {
   // Behaviortree utilities
@@ -8,7 +8,7 @@ BehaviorTreeTaskEngine::BehaviorTreeTaskEngine(rclcpp::Node *handle) : nh_(handl
   status_ = BT::NodeStatus::RUNNING;
   terminalStateNotified_ = false;
   tree_ = factory_.createTreeFromText(empty_tree_xml_, blackboard_);
-  guiTracker_ = new BT::PublisherZMQ(tree_);
+  guiTracker_ = std::make_unique<BT::PublisherZMQ>(tree_);
   bt_file_ = handle->declare_parameter<std::string>("mission_file", "");
   sleep_us_ = std::chrono::microseconds(
       (unsigned int)(1000000 / handle->declare_parameter<double>("tick_frequency", 10.0)));
@@ -30,18 +30,18 @@ BehaviorTreeTaskEngine::BehaviorTreeTaskEngine(rclcpp::Node *handle) : nh_(handl
   tickTimer_ = handle->create_wall_timer(sleep_us_, std::bind(&BehaviorTreeTaskEngine::spin, this));
 
   // Register nodes
-  BT::RegisterRosAction<ReFRESH_ROS_EX_node>(
-      factory_, "ReFRESH_ROS_EX",
-      ReFRESH_ROS_EX_node::Params(std::shared_ptr<rclcpp::Node>(handle),
+  BT::RegisterRosAction<ROS_Action_EX_Node>(
+      factory_, "ReFRESH_ROS_Action_EX",
+      ROS_Action_EX_Node::Params(std::shared_ptr<rclcpp::Node>(handle),
                                   "refresh_ros_ex_action_test", 500));
-  BT::RegisterActionEvaluator<ReFRESH_ROS_EV_node>(factory_, "ReFRESH_ROS_EV");
-  BT::RegisterRosService<ReFrESH_ROS_ES_node>(
-      factory_, "ReFRESH_ROS_ES",
-      ReFrESH_ROS_ES_node::Params(std::shared_ptr<rclcpp::Node>(handle),
+  BT::RegisterActionEvaluator<ROS_Action_EV_Node>(factory_, "ReFRESH_ROS_Action_EV");
+  BT::RegisterRosService<ROS_Action_ES_Node>(
+      factory_, "ReFRESH_ROS_Action_ES",
+      ROS_Action_ES_Node::Params(std::shared_ptr<rclcpp::Node>(handle),
                                   "refresh_ros_es_service_test", 100));
   factory_.registerNodeType<ReFRESH_Module>("ReFRESH_Module");
-  factory_.registerNodeType<ReFRESH_Decider>("ReFRESH_Decider");
-  factory_.registerNodeType<ReFRESH_Reactor>("ReFRESH_Reactor");
+  factory_.registerNodeType<DeciderNode>("ReFRESH_Decider");
+  factory_.registerNodeType<ReactorNode>("ReFRESH_Reactor");
   // Derived task engine class can use this base initializer and register more custom nodes
 }
 
@@ -90,8 +90,7 @@ void BehaviorTreeTaskEngine::controlCb(const ModuleControl::Request::SharedPtr r
       }
       terminalStateNotified_ = false;
       status_ = BT::NodeStatus::RUNNING;
-      delete (guiTracker_);
-      guiTracker_ = new BT::PublisherZMQ(tree_);
+      guiTracker_ = std::make_unique<BT::PublisherZMQ>(tree_);
       break;
 
     default:
@@ -128,8 +127,7 @@ rcl_interfaces::msg::SetParametersResult BehaviorTreeTaskEngine::reconfigCb(
         }
         terminalStateNotified_ = false;
         status_ = BT::NodeStatus::RUNNING;
-        delete (guiTracker_);
-        guiTracker_ = new BT::PublisherZMQ(tree_);
+        guiTracker_ = std::make_unique<BT::PublisherZMQ>(tree_);
         break;
       case TICK_FREQUENCY:
         sleep_us_ = std::chrono::microseconds((unsigned int)(1000000 / param.as_double()));
@@ -173,7 +171,7 @@ void BehaviorTreeTaskEngine::spin() {
   // halt();
 }
 
-}  // namespace ReFRESH
+}  // namespace ReFRESH_BT
 
 #include "rclcpp_components/register_node_macro.hpp"
-RCLCPP_COMPONENTS_REGISTER_NODE(ReFRESH::BehaviorTreeTaskEngineNode)
+RCLCPP_COMPONENTS_REGISTER_NODE(ReFRESH_BT::BehaviorTreeTaskEngineNode)

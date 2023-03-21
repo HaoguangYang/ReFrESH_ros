@@ -1,7 +1,7 @@
 #include "refresh_ros2/bt_refresh_control_node.hpp"
 
-namespace ReFRESH {
-void ReFRESH_Decider::halt() {
+namespace ReFRESH_BT {
+void DeciderNode::halt() {
   haltChild(indActive_);
   // retry counter resets on every halt.
   nRetry_ = std::vector<unsigned int>(children_nodes_.size(), 0);
@@ -9,7 +9,7 @@ void ReFRESH_Decider::halt() {
   setStatus(NodeStatus::IDLE);
 }
 
-NodeStatus ReFRESH_Decider::turnOnBest() {
+NodeStatus DeciderNode::turnOnBest() {
   std::vector<ReFRESH_Cost> moduleCost_;
   size_t ind;
   float pWeight_ = getInput<float>("performance_weight").value();
@@ -96,7 +96,7 @@ NodeStatus ReFRESH_Decider::turnOnBest() {
   return NodeStatus::RUNNING;
 }
 
-NodeStatus ReFRESH_Decider::tick() {
+NodeStatus DeciderNode::tick() {
   NodeStatus childStatus;
   if (status() == NodeStatus::IDLE) {
     // no module is running yet. tick estimator of each module by sending a tick signal to each idle
@@ -171,7 +171,7 @@ NodeStatus ReFRESH_Decider::tick() {
   return NodeStatus::RUNNING;
 }
 
-void ReFRESH_Reactor::halt() {
+void ReactorNode::halt() {
   haltChild(indActive_);
   // retry counter resets on every halt.
   nRetry_ = std::vector<unsigned int>(children_nodes_.size(), 0);
@@ -179,7 +179,7 @@ void ReFRESH_Reactor::halt() {
   setStatus(NodeStatus::IDLE);
 }
 
-NodeStatus ReFRESH_Reactor::turnOnBestMitigation() {
+NodeStatus ReactorNode::turnOnBestMitigation() {
   std::vector<ReFRESH_Cost> moduleCost_;
   size_t ind;
   float pWeight_ = getInput<float>("performance_weight").value();
@@ -265,7 +265,7 @@ NodeStatus ReFRESH_Reactor::turnOnBestMitigation() {
   return NodeStatus::RUNNING;
 }
 
-NodeStatus ReFRESH_Reactor::turnOnNominal() {
+NodeStatus ReactorNode::turnOnNominal() {
   float pWeight_ = getInput<float>("performance_weight").value();
   float rWeight_ = getInput<float>("resource_weight").value();
   unsigned int retries = getInput<unsigned int>("retries").value();
@@ -314,7 +314,7 @@ NodeStatus ReFRESH_Reactor::turnOnNominal() {
   return NodeStatus::RUNNING;
 }
 
-NodeStatus ReFRESH_Reactor::tick() {
+NodeStatus ReactorNode::tick() {
   NodeStatus childStatus;
   if (status() == NodeStatus::IDLE) {
     // retry counter resets on every halt.
@@ -418,4 +418,4 @@ NodeStatus ReFRESH_Reactor::tick() {
   // current module is RUNNING
   return NodeStatus::RUNNING;
 }
-}  // namespace BT
+}  // namespace ReFRESH_BT

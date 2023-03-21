@@ -323,6 +323,77 @@ inline void RosActionNode<T>::cancelGoal() {
   }
 }
 
+template <class ActionT>
+class ActionEvaluatorNode : public StatefulActionNode {
+ protected:
+  ActionEvaluatorNode(const std::string& name, const NodeConfiguration& conf)
+      : StatefulActionNode(name, conf) {}
+
+ public:
+  using ActionType = ActionT;
+  using Feedback = typename ActionT::Feedback;
+
+  ActionEvaluatorNode() = delete;
+
+  virtual ~ActionEvaluatorNode() = default;
+
+  /// These ports will be added automatically if this Node is
+  /// registered using RegisterReFRESH_EV<DeriveClass>()
+  static PortsList providedPorts() {
+    return {InputPort<Feedback>("feedback"), OutputPort<float>("performance_cost"),
+            OutputPort<float>("resource_cost")};
+  }
+
+  virtual NodeStatus spinOnce() = 0;
+
+  inline NodeStatus spinOnceImpl() {
+    Result fbRes;
+    if (!(fbRes = getInput<Feedback>("feedback", fb_)))
+      throw(
+          RuntimeError("Action Evaluator Node missing required input [feedback]: ", fbRes.error()));
+    NodeStatus status = spinOnce();
+    setOutput("performance_cost", pCost_);
+    setOutput("resource_cost", rCost_);
+    setStatus(status);
+    return status;
+  }
+
+  inline NodeStatus onStart() override {
+    setStatus(NodeStatus::RUNNING);
+    return spinOnceImpl();
+  }
+
+  /// method invoked by an action in the RUNNING state.
+  inline NodeStatus onRunning() override { return spinOnceImpl(); }
+
+  inline void onHalted() override {
+    // TODO: what to do here?
+    return;
+  }
+
+ protected:
+  Feedback fb_;
+  float pCost_, rCost_;
+};
+
+/// Method to register the evaluator into a factory.
+template <class DerivedT>
+static void RegisterActionEvaluator(BehaviorTreeFactory& factory,
+                                    const std::string& registration_ID) {
+  NodeBuilder builder = [](const std::string& name, const NodeConfiguration& config) {
+    return std::make_unique<DerivedT>(name, config);
+  };
+
+  TreeNodeManifest manifest;
+  manifest.type = getType<DerivedT>();
+  manifest.ports = DerivedT::providedPorts();
+  manifest.registration_ID = registration_ID;
+  const auto& basic_ports = ActionEvaluatorNode<typename DerivedT::ActionType>::providedPorts();
+  manifest.ports.insert(basic_ports.begin(), basic_ports.end());
+
+  factory.registerBuilder(manifest, builder);
+}
+
 }  // namespace BT
 
 #endif  // BEHAVIOR_TREE_ROS2__BT_ACTION_NODE_HPP_

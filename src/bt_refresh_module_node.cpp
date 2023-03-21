@@ -1,6 +1,6 @@
 #include "refresh_ros2/bt_refresh_module_node.hpp"
 
-namespace ReFRESH {
+namespace ReFRESH_BT {
 void ReFRESH_Module::halt() {
   // Stop EX
   ControlNode::haltChild(0);
@@ -96,4 +96,4 @@ BT::NodeStatus ReFRESH_Module::tick() {
       break;
   }
 }
-}  // namespace ReFRESH
+}  // namespace ReFRESH_BT

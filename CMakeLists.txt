@@ -31,7 +31,7 @@ ament_auto_add_library(${PROJECT_NAME}_bt_task_engine SHARED
   src/bt_task_engine.cpp
 )
 rclcpp_components_register_node(${PROJECT_NAME}_bt_task_engine
-  PLUGIN "ReFRESH::BehaviorTreeTaskEngineNode"
+  PLUGIN "ReFRESH_BT::BehaviorTreeTaskEngineNode"
   EXECUTABLE ${PROJECT_NAME}_bt_task_engine_node
 )
 

@@ -7,8 +7,9 @@
 #include "refresh_cost.hpp"
 
 using BT::NodeStatus;
+using ReFRESH::ReFRESH_Cost;
 
-namespace ReFRESH {
+namespace ReFRESH_BT {
 class ReFRESH_Module : public BT::ControlNode {
  public:
   ReFRESH_Module(const std::string& name, const BT::NodeConfiguration& config)
@@ -152,6 +153,6 @@ class ReFRESH_Module : public BT::ControlNode {
 
   virtual NodeStatus tick() override;
 };
-}  // namespace ReFRESH
+}  // namespace ReFRESH_BT
 
 #endif

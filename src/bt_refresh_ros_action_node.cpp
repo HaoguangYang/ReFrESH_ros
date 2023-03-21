@@ -1,7 +1,7 @@
 #include "refresh_ros2/bt_refresh_ros_action_node.hpp"
 
-namespace ReFRESH {
-bool ReFRESH_ROS_EX_node::sendGoal(Goal &goal) {
+namespace ReFRESH_BT {
+bool ROS_Action_EX_Node::sendGoal(Goal &goal) {
   if (!getInput<std::string>("action_request", goal.request)) {
     // abort the entire action. Result in a FAILURE
     return false;
@@ -13,7 +13,7 @@ bool ReFRESH_ROS_EX_node::sendGoal(Goal &goal) {
   return true;
 }
 
-NodeStatus ReFRESH_ROS_EV_node::spinOnce() {
+NodeStatus ROS_Action_EV_Node::spinOnce() {
   std::vector<ReFRESH_Cost> allModuleCosts;
   allModuleCosts.reserve(fb_.evaluate.size());
   std::transform(fb_.evaluate.begin(), fb_.evaluate.end(), allModuleCosts.begin(),
@@ -33,13 +33,13 @@ NodeStatus ReFRESH_ROS_EV_node::spinOnce() {
   return NodeStatus::SUCCESS;
 }
 
-bool ReFrESH_ROS_ES_node::sendRequest(Request &request) {
+bool ROS_Action_ES_Node::sendRequest(Request &request) {
   if (!getInput<std::string>("action_request", request.request)) return false;
   if (!getInput<std::string>("arguments", request.arguments)) return false;
   return true;
 }
 
-NodeStatus ReFrESH_ROS_ES_node::onResponse(const Response &rep) {
+NodeStatus ROS_Action_ES_Node::onResponse(const Response &rep) {
   std::vector<ReFRESH_Cost> allModuleCosts;
   allModuleCosts.reserve(rep.estimate.size());
   std::transform(rep.estimate.begin(), rep.estimate.end(), allModuleCosts.begin(),
@@ -60,4 +60,4 @@ NodeStatus ReFrESH_ROS_ES_node::onResponse(const Response &rep) {
   if (allResBottleneck >= 1.0) return NodeStatus::FAILURE;
   return NodeStatus::SUCCESS;
 }
-}  // namespace ReFRESH
+}  // namespace ReFRESH_BT

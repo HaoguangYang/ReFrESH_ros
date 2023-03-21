@@ -21,7 +21,7 @@ using refresh_ros_msgs::msg::ModuleRequest;
 using refresh_ros_msgs::msg::ModuleTelemetry;
 using refresh_ros_msgs::srv::ModuleControl;
 
-namespace ReFRESH {
+namespace ReFRESH_BT {
 
 class BehaviorTreeTaskEngine {
  public:
@@ -29,21 +29,21 @@ class BehaviorTreeTaskEngine {
 
   BehaviorTreeTaskEngine() = delete;
 
-  virtual ~BehaviorTreeTaskEngine() {
-    halt();
-    delete (guiTracker_);
-  }
+  virtual ~BehaviorTreeTaskEngine() { halt(); }
 
   void halt() {
     tree_.rootNode()->halt();
     status_ = BT::NodeStatus::IDLE;
   }
 
+  // control the running status of myself -- start/stop tree, re-init, etc.
   void controlCb(const ModuleControl::Request::SharedPtr req,
                  ModuleControl::Response::SharedPtr res);
 
+  // called upon parameter updates
   rcl_interfaces::msg::SetParametersResult reconfigCb(const std::vector<rclcpp::Parameter> &config);
 
+  // periodically tick the tree
   void spin();
 
  protected:
@@ -52,7 +52,7 @@ class BehaviorTreeTaskEngine {
 
   bool terminalStateNotified_;
 
-  BT::PublisherZMQ *guiTracker_;
+  std::unique_ptr<BT::PublisherZMQ> guiTracker_ = nullptr;
 
   BT::BehaviorTreeFactory factory_;
 
@@ -106,8 +106,9 @@ class BehaviorTreeTaskEngine {
  */
 class REFRESH_TASK_ENGINE_PUBLIC BehaviorTreeTaskEngineNode : public rclcpp::Node {
  public:
-  explicit BehaviorTreeTaskEngineNode(const rclcpp::NodeOptions &options = rclcpp::NodeOptions())
-      : rclcpp::Node("bt_task_engine", options) {
+  explicit BehaviorTreeTaskEngineNode(const std::string &name = "bt_task_engine",
+                                      const rclcpp::NodeOptions &options = rclcpp::NodeOptions())
+      : rclcpp::Node(name, options) {
     instantiate_engine(std::make_unique<BehaviorTreeTaskEngine>(this));
   };
 
@@ -120,6 +121,6 @@ class REFRESH_TASK_ENGINE_PUBLIC BehaviorTreeTaskEngineNode : public rclcpp::Nod
   std::unique_ptr<BehaviorTreeTaskEngine> m_task_engine{nullptr};
 };
 
-}  // namespace ReFRESH
+}  // namespace ReFRESH_BT
 
 #endif
