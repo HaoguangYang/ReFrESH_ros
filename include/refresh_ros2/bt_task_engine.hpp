@@ -106,9 +106,8 @@ class BehaviorTreeTaskEngine {
  */
 class REFRESH_TASK_ENGINE_PUBLIC BehaviorTreeTaskEngineNode : public rclcpp::Node {
  public:
-  explicit BehaviorTreeTaskEngineNode(const std::string &name = "bt_task_engine",
-                                      const rclcpp::NodeOptions &options = rclcpp::NodeOptions())
-      : rclcpp::Node(name, options) {
+  explicit BehaviorTreeTaskEngineNode(const rclcpp::NodeOptions &options = rclcpp::NodeOptions())
+      : rclcpp::Node("bt_task_engine", options) {
     instantiate_engine(std::make_unique<BehaviorTreeTaskEngine>(this));
   };
 
