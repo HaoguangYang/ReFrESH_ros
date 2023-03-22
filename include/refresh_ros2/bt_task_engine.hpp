@@ -75,10 +75,10 @@ class BehaviorTreeTaskEngine {
   rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr recfgServer_;
 
   std::unordered_map<BT::NodeStatus, ModuleTelemetry::_status_type> statusMap_ = {
-      {BT::NodeStatus::IDLE, ModuleTelemetry::READY},
-      {BT::NodeStatus::RUNNING, ModuleTelemetry::RUNNING},
-      {BT::NodeStatus::SUCCESS, ModuleTelemetry::OFF},
-      {BT::NodeStatus::FAILURE, ModuleTelemetry::ERROR},
+      {BT::NodeStatus::IDLE, ModuleTelemetry::PRIMARY_STATE_INACTIVE},
+      {BT::NodeStatus::RUNNING, ModuleTelemetry::PRIMARY_STATE_ACTIVE},
+      {BT::NodeStatus::SUCCESS, ModuleTelemetry::PRIMARY_STATE_FINALIZED},
+      {BT::NodeStatus::FAILURE, ModuleTelemetry::PRIMARY_STATE_UNCONFIGURED},
   };
 
   const std::string empty_tree_xml_ = R"(

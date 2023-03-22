@@ -5,7 +5,7 @@ namespace ReFRESH_BT {
 BehaviorTreeTaskEngine::BehaviorTreeTaskEngine(rclcpp::Node *handle) : nh_(handle) {
   // Behaviortree utilities
   blackboard_ = BT::Blackboard::create();
-  status_ = BT::NodeStatus::RUNNING;
+  status_ = BT::NodeStatus::IDLE;
   terminalStateNotified_ = false;
   tree_ = factory_.createTreeFromText(empty_tree_xml_, blackboard_);
   guiTracker_ = std::make_unique<BT::PublisherZMQ>(tree_);
@@ -33,12 +33,12 @@ BehaviorTreeTaskEngine::BehaviorTreeTaskEngine(rclcpp::Node *handle) : nh_(handl
   BT::RegisterRosAction<ROS_Action_EX_Node>(
       factory_, "ReFRESH_ROS_Action_EX",
       ROS_Action_EX_Node::Params(std::shared_ptr<rclcpp::Node>(handle),
-                                  "refresh_ros_ex_action_test", 500));
+                                 "refresh_ros_ex_action_test", 500));
   BT::RegisterActionEvaluator<ROS_Action_EV_Node>(factory_, "ReFRESH_ROS_Action_EV");
   BT::RegisterRosService<ROS_Action_ES_Node>(
       factory_, "ReFRESH_ROS_Action_ES",
       ROS_Action_ES_Node::Params(std::shared_ptr<rclcpp::Node>(handle),
-                                  "refresh_ros_es_service_test", 100));
+                                 "refresh_ros_es_service_test", 100));
   factory_.registerNodeType<ReFRESH_Module>("ReFRESH_Module");
   factory_.registerNodeType<DeciderNode>("ReFRESH_Decider");
   factory_.registerNodeType<ReactorNode>("ReFRESH_Reactor");
@@ -56,30 +56,8 @@ void BehaviorTreeTaskEngine::controlCb(const ModuleControl::Request::SharedPtr r
   }
   lastControlStamp_ = controlStamp_;
   switch (req->request.request) {
-    case ModuleRequest::SPAWN:
-    case ModuleRequest::ON:
-      status_ = BT::NodeStatus::RUNNING;
-      break;
-
-    case ModuleRequest::WAKEUP:
-      terminalStateNotified_ = false;
-      status_ = tree_.tickRoot();
-      break;
-
-    case ModuleRequest::OFF:
-    case ModuleRequest::TERM:
-    case ModuleRequest::KILL:
-      halt();
-      break;
-
-    case ModuleRequest::CLEAR:
-      terminalStateNotified_ = false;
-      status_ = BT::NodeStatus::IDLE;
-      break;
-
-    case ModuleRequest::REINIT:
-      std::cout << "Reinitializing mission file: " << bt_file_ << std::endl;
-      halt();
+    case ModuleRequest::TRANSITION_CONFIGURE:
+      std::cout << "Configure Behavior Tree using mission file: " << bt_file_ << std::endl;
       // if invalid tree / file, use an empty tree.
       try {
         tree_ = factory_.createTreeFromFile(bt_file_, blackboard_);
@@ -88,9 +66,31 @@ void BehaviorTreeTaskEngine::controlCb(const ModuleControl::Request::SharedPtr r
                   << "! Using an EMPTY TREE instead." << std::endl;
         tree_ = factory_.createTreeFromText(empty_tree_xml_, blackboard_);
       }
-      terminalStateNotified_ = false;
-      status_ = BT::NodeStatus::RUNNING;
       guiTracker_ = std::make_unique<BT::PublisherZMQ>(tree_);
+      terminalStateNotified_ = false;
+      status_ = BT::NodeStatus::IDLE;
+      break;
+
+    case ModuleRequest::TRANSITION_ACTIVATE:
+      terminalStateNotified_ = false;
+      status_ = tree_.tickRoot();
+      break;
+
+    case ModuleRequest::TRANSITION_DEACTIVATE:
+      halt();
+      status_ = BT::NodeStatus::IDLE;
+      break;
+
+    case ModuleRequest::TRANSITION_UNCONFIGURED_SHUTDOWN:
+    case ModuleRequest::TRANSITION_INACTIVE_SHUTDOWN:
+    case ModuleRequest::TRANSITION_ACTIVE_SHUTDOWN:
+      halt();
+      status_ = BT::NodeStatus::SUCCESS;
+      break;
+
+    case ModuleRequest::TRANSITION_CLEANUP:
+      halt();
+      status_ = BT::NodeStatus::FAILURE;
       break;
 
     default:
