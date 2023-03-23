@@ -104,7 +104,7 @@ class BehaviorTreeTaskEngine {
 /**
  * @brief Wrapper class around the functional implementation of a ROS component.
  */
-class REFRESH_TASK_ENGINE_PUBLIC BehaviorTreeTaskEngineNode : public rclcpp::Node {
+class REFRESH_ROS2_PUBLIC BehaviorTreeTaskEngineNode : public rclcpp::Node {
  public:
   explicit BehaviorTreeTaskEngineNode(const rclcpp::NodeOptions &options = rclcpp::NodeOptions())
       : rclcpp::Node("bt_task_engine", options) {

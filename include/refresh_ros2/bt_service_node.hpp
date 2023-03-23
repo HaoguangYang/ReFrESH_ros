@@ -19,8 +19,8 @@ struct RosServiceNodeParams {
   std::string service_name;
   std::chrono::milliseconds server_timeout;
 
-  RosServiceNodeParams(const std::shared_ptr<rclcpp::Node>& node, const std::string& service_name = "",
-                    const unsigned int& server_timeout = 0)
+  RosServiceNodeParams(const std::shared_ptr<rclcpp::Node>& node,
+                       const std::string& service_name = "", const unsigned int& server_timeout = 0)
       : nh(node), service_name(service_name), server_timeout(server_timeout){};
 };
 
@@ -80,12 +80,18 @@ class RosServiceNode : public SyncActionNode {
   /** Callback invoked when the result is received from the server.
    * It is up to the user to define if the action returns SUCCESS or FAILURE.
    */
-  virtual NodeStatus onResponse(const Response& rep) { return NodeStatus::SUCCESS; };
+  virtual NodeStatus onResponse(const Response& rep) {
+    (void)rep;
+    return NodeStatus::SUCCESS;
+  };
 
   /** Callback invoked when something goes wrong.
    * It must return either SUCCESS or FAILURE.
    */
-  virtual NodeStatus onFailure(const Error& error) { return NodeStatus::FAILURE; }
+  virtual NodeStatus onFailure(const Error& error) {
+    (void)error;
+    return NodeStatus::FAILURE;
+  }
 
  protected:
   std::shared_ptr<rclcpp::Node> node_;

@@ -38,7 +38,7 @@ class ReFRESH_Cost {
 
   ReFRESH_Cost(const size_t& index, const float& pCost, const float& rCost)
       : costUpdated_(false),
-        childId_(0),
+        childId_(index),
         performanceWeight_(0.5),
         resourceWeight_(0.5),
         performanceCost_{pCost},

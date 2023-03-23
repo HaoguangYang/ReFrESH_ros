@@ -19,8 +19,8 @@ struct RosActionNodeParams {
   std::string action_name;
   std::chrono::milliseconds server_timeout;
 
-  RosActionNodeParams(const std::shared_ptr<rclcpp::Node>& node, const std::string& action_name = "",
-                   const unsigned int& server_timeout = 0)
+  RosActionNodeParams(const std::shared_ptr<rclcpp::Node>& node,
+                      const std::string& action_name = "", const unsigned int& server_timeout = 0)
       : nh(node), action_name(action_name), server_timeout(server_timeout){};
 };
 
@@ -111,12 +111,18 @@ class RosActionNode : public ActionNodeBase {
    * @param res Action result returned by the action server.
    * @return std::unique_ptr<Feedback> Generated feedback. Default to a null-pointer.
    */
-  virtual std::unique_ptr<Feedback> resultToFeedback(const WrappedResult& res) { return nullptr; }
+  virtual std::unique_ptr<Feedback> resultToFeedback(const WrappedResult& res) {
+    (void)res;
+    return nullptr;
+  }
 
   /** Callback invoked when something goes wrong.
    * It must return either SUCCESS or FAILURE.
    */
-  virtual NodeStatus onFailure(const Error& error) { return NodeStatus::FAILURE; }
+  virtual NodeStatus onFailure(const Error& error) {
+    (void)error;
+    return NodeStatus::FAILURE;
+  }
 
   /// Method used to send a request to the Action server to cancel the current goal
   void cancelGoal();
@@ -172,7 +178,8 @@ static void RegisterRosAction(
 
 template <class T>
 inline RosActionNode<T>::RosActionNode(
-    const std::string& instance_name, const NodeConfiguration& conf, const RosActionNodeParams& params,
+    const std::string& instance_name, const NodeConfiguration& conf,
+    const RosActionNodeParams& params,
     typename std::shared_ptr<ActionClient> external_action_client)
     : ActionNodeBase(instance_name, conf),
       node_(params.nh),
@@ -241,7 +248,7 @@ inline NodeStatus RosActionNode<T>::tick() {
     };
     //--------------------
     goal_options.goal_response_callback = [this](const std::shared_ptr<GoalHandle>& goal_handle) {
-      if (goal_handle_ == nullptr) {
+      if (goal_handle == nullptr) {
         RCLCPP_ERROR(node_->get_logger(), "Goal was rejected by server");
         setStatus(checkStatus(onFailure(Error::GOAL_REJECTED_BY_SERVER)));
         emitStateChanged();

@@ -35,6 +35,15 @@ rclcpp_components_register_node(${PROJECT_NAME}_bt_task_engine
   EXECUTABLE ${PROJECT_NAME}_bt_task_engine_node
 )
 
+# generate ros2 node self awareness attachment
+ament_auto_add_library(${PROJECT_NAME}_self_awareness_lib SHARED
+  src/refresh_self_awareness_attachment.cpp
+)
+rclcpp_components_register_node(${PROJECT_NAME}_self_awareness_lib
+  PLUGIN "ReFRESH::ROS_NodeSelfAwarenessImpl"
+  EXECUTABLE ${PROJECT_NAME}_self_awareness_attachment
+)
+
 # TESTS
 if(AMENT_ENABLE_TESTING)
   find_package(ament_lint_auto REQUIRED)

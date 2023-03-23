@@ -17,7 +17,7 @@ NodeStatus DeciderNode::turnOnBest() {
   unsigned int retries = getInput<unsigned int>("retries").value();
   for (ind = 0; ind < childrenCount(); ind++) {
     // this list is for inactive modules.
-    if (ind == indActive_) continue;
+    if (ind == static_cast<size_t>(indActive_)) continue;
     // this module has exceeded max retry limits. Skip it.
     if (nRetry_[ind] > retries) continue;
 
@@ -187,7 +187,7 @@ NodeStatus ReactorNode::turnOnBestMitigation() {
   unsigned int retries = getInput<unsigned int>("retries").value();
   for (ind = 0; ind < childrenCount() - 1; ind++) {
     // this list is for inactive modules.
-    if (ind == indActive_) continue;
+    if (ind == static_cast<size_t>(indActive_)) continue;
     // this module has exceeded max retry limits. Skip it.
     if (nRetry_[ind] > retries) continue;
 
@@ -266,12 +266,12 @@ NodeStatus ReactorNode::turnOnBestMitigation() {
 }
 
 NodeStatus ReactorNode::turnOnNominal() {
-  float pWeight_ = getInput<float>("performance_weight").value();
-  float rWeight_ = getInput<float>("resource_weight").value();
+  // float pWeight_ = getInput<float>("performance_weight").value();
+  // float rWeight_ = getInput<float>("resource_weight").value();
   unsigned int retries = getInput<unsigned int>("retries").value();
 
-  // this list is for inactive modules.
-  if (indActive_ = childrenCount() - 1) return NodeStatus::RUNNING;
+  // We are already on the nominal node to be turned on.
+  if (indActive_ == static_cast<int>(childrenCount()) - 1) return NodeStatus::RUNNING;
   // this module has exceeded max retry limits. Skip it.
   if (nRetry_.back() > retries) return NodeStatus::FAILURE;
 
@@ -280,7 +280,7 @@ NodeStatus ReactorNode::turnOnNominal() {
     // not a refresh module. if node status is not-failure then make its cost 1-eps (least
     // considered)
     float pCost_, rCost_;
-    NodeStatus childStatus = tryConvert->executeTick();
+    NodeStatus childStatus = children_nodes_.back()->executeTick();
     switch (childStatus) {
       case NodeStatus::SUCCESS:
         return NodeStatus::SUCCESS;
@@ -388,7 +388,7 @@ NodeStatus ReactorNode::tick() {
   // current module returned SUCCESS
   else if (childStatus == NodeStatus::SUCCESS) {
     // this is the last module
-    if (indActive_ == childrenCount() - 1) return NodeStatus::SUCCESS;
+    if (indActive_ == static_cast<int>(childrenCount()) - 1) return NodeStatus::SUCCESS;
     // else, check if last module entrance condition is met
     childStatus = turnOnNominal();
     // check mitigation solution if entry is not satisfied
