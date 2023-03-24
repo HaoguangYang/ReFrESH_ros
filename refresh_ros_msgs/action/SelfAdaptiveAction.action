@@ -1,0 +1,16 @@
+# High level request emitted by the ReFRESH action node in Behavior Tree, and responded by the
+# Ontology server node. The Ontology server node translates the high-level request into low-level
+# ModuleControl.srv calls that wakes up or shuts down individual ROS2 nodes.
+
+# Request verb -- this is the robot action to be realized by the collection of functional ROS2 nodes
+string request
+# Request arguments -- this is the serialized parameters for the robot action
+string arguments
+---
+# Explanation given by the ontological reasoning about the final result.
+string explanation
+---
+# Performance feedback from the collection of functional ROS2 nodes
+ModuleTelemetry[] evaluate
+# Explanation given by the ontological reasoning about the feedback.
+string explanation

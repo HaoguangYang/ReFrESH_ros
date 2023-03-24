@@ -1,0 +1,9 @@
+# This service transitions the state of individual functional ROS nodes. They are emitted by either
+# human engineers or the Ontology server, upon request of completing a specific action. The service
+# is handled by the self-adaptation attachment of each ROS nodes.
+
+# Request about the name of the target node and the transition to take
+ModuleRequest request
+---
+# Current status of the node after receiving the request and attempting the state transition
+ModuleTelemetry status

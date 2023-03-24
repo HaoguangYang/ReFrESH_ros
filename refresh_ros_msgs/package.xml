@@ -1,0 +1,43 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>refresh_ros_msgs</name>
+  <version>0.0.1</version>
+  <description> This package provides the infrastructure for run-time self-adaptation at the ROS
+    node granularity. The self-adaptation act as a meta-control for the robotic system. This package
+    contains the interface description for the S/A nodes on information transactions and decision
+    making.
+  </description>
+
+  <maintainer email="yang1510@purdue.edu">Haoguang Yang</maintainer>
+  <license>Apache 2.0</license>
+  <author>Haoguang Yang</author>
+
+  <buildtool_depend condition="$ROS_VERSION == 1">catkin</buildtool_depend>
+  <buildtool_depend condition="$ROS_VERSION == 2">ament_cmake</buildtool_depend>
+  <buildtool_depend condition="$ROS_VERSION == 2">ament_cmake_auto</buildtool_depend>
+  <build_depend condition="$ROS_VERSION == 1">message_generation</build_depend>
+  <build_depend condition="$ROS_VERSION == 2">rosidl_default_generators</build_depend>
+  <build_depend>ros_environment</build_depend>
+
+  <depend condition="$ROS_VERSION == 1">actionlib</depend>
+  <depend condition="$ROS_VERSION == 1">actionlib_msgs</depend>
+  <depend condition="$ROS_VERSION == 2">action_msgs</depend>
+  <depend condition="$ROS_VERSION == 2">builtin_interfaces</depend>
+
+  <depend>std_msgs</depend>
+
+  <exec_depend condition="$ROS_VERSION == 1">message_runtime</exec_depend>
+  <exec_depend condition="$ROS_VERSION == 2">rosidl_default_runtime</exec_depend>
+
+  <test_depend condition="$ROS_VERSION == 2">ament_lint_auto</test_depend>
+  <test_depend condition="$ROS_VERSION == 2">ament_lint_common</test_depend>
+
+  <member_of_group>rosidl_interface_packages</member_of_group>
+
+  <export>
+    <build_type condition="$ROS_VERSION == 1">catkin</build_type>
+    <build_type condition="$ROS_VERSION == 2">ament_cmake</build_type>
+  </export>
+
+</package>
