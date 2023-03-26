@@ -6,8 +6,8 @@
 #include <vector>
 
 #include "behaviortree_cpp_v3/control_node.h"
-#include "bt_refresh_module_node.hpp"
-#include "refresh_cost.hpp"
+#include "self_adaptive_behavior_tree/bt_refresh_module_node.hpp"
+#include "self_adaptive_behavior_tree/refresh_cost.hpp"
 
 using BT::NodeStatus;
 using ReFRESH::ReFRESH_Cost;

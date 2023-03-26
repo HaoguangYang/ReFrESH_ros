@@ -1,0 +1,14 @@
+<library path="self_awareness_attachment">
+    <class type="ReFRESH::AgeAttr" base_class_type="ReFRESH::MsgQualityAttr">
+        <description>Plugin to evaluate message staleness</description>
+    </class>
+    <class type="ReFRESH::AgeAttrTyped<builtin_interfaces::msg::Time>" base_class_type="ReFRESH::MsgQualityAttr">
+        <description>Plugin to evaluate message staleness -- bind to builtin_interfaces/msg/Time</description>
+    </class>
+    <class type="ReFRESH::AgeAttrTyped<std_msgs::msg::Header>" base_class_type="ReFRESH::MsgQualityAttr">
+        <description>Plugin to evaluate message staleness -- bind to std_msgs/msg/Header</description>
+    </class>
+    <class type="ReFRESH::AgeAttrTyped<nav_msgs::msg::Odometry>" base_class_type="ReFRESH::MsgQualityAttr">
+        <description>Plugin to evaluate message staleness -- bind to nav_msgs/msg/Odometry</description>
+    </class>
+</library>

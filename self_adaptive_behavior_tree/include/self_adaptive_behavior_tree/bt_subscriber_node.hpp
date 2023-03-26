@@ -5,8 +5,6 @@
 #include <string>
 
 // ROS 2 headers
-#include <rclcpp/allocator/allocator_common.hpp>
-#include <rclcpp/executors.hpp>
 #include <rclcpp/rclcpp.hpp>
 
 #include "behaviortree_cpp_v3/action_node.h"
@@ -20,8 +18,8 @@ struct RosSubscriberNodeParams {
   rclcpp::QoS qos;
 
   RosSubscriberNodeParams(const std::shared_ptr<rclcpp::Node>& node,
-                       const std::string& topic_name = "",
-                       const rclcpp::QoS& qos = rclcpp::SensorDataQoS())
+                          const std::string& topic_name = "",
+                          const rclcpp::QoS& qos = rclcpp::SensorDataQoS())
       : nh(node), topic_name(topic_name), qos(qos){};
 };
 

@@ -1,4 +1,4 @@
-#include "refresh_ros2/refresh_self_awareness_attachment.hpp"
+#include "self_awareness_attachment/refresh_self_awareness_attachment.hpp"
 
 namespace ReFRESH {
 
@@ -12,6 +12,9 @@ ROS_NodeSelfAwarenessImpl::ROS_NodeSelfAwarenessImpl(const rclcpp::NodeOptions& 
   topicQualityAttrType_ =
       this->declare_parameter("topic_quality.attributes", std::vector<std::string>{});
   topicQualityTol_ = this->declare_parameter("topic_quality.tolerance", std::vector<double>{});
+  // vector of YAML-formatted string that passes in additional configurations for each attribute.
+  topicQualityAttrCfg_ =
+      this->declare_parameter("topic_quality.config", std::vector<std::string>{});
   topicRef_ = this->declare_parameter("topic_quality.topic_list_ref", std::vector<int64_t>{});
 
   if (topicNames_.size() != topicTypes_.size() || topicNames_.size() != topicDir_.size() ||
@@ -22,7 +25,7 @@ ROS_NodeSelfAwarenessImpl::ROS_NodeSelfAwarenessImpl(const rclcpp::NodeOptions& 
   }
 
   if (topicQualityAttrType_.size() != topicRef_.size() ||
-      topicQualityAttrType_.size() != topicQualityTol_.size()) {
+      topicQualityAttrType_.size() != topicQualityAttrCfg_.size()) {
     throw std::runtime_error(
         "Topic quality attribute list is ill-formed. Obtaining topic quality attribute from "
         "within this node is not supported yet.");
@@ -53,7 +56,8 @@ ROS_NodeSelfAwarenessImpl::ROS_NodeSelfAwarenessImpl(const rclcpp::NodeOptions& 
   qAttrLib_.reserve(topicQualityAttrType_.size());
   for (size_t n = 0; n < topicQualityAttrType_.size(); n++) {
     qAttrLib_.push_back(qAttrLoader.createSharedInstance(topicQualityAttrType_[n]));
-    qAttrLib_.back()->initialize(topicTypes_[topicRef_[n]], topicQualityTol_[n]);
+    qAttrLib_.back()->configure(this, topicTypes_[topicRef_[n]], topicQualityTol_[n],
+                                YAML::Load(topicQualityAttrCfg_[n]));
   }
 
   updateTimer_ =

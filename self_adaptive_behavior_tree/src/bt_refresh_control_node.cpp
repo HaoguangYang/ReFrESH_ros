@@ -1,4 +1,4 @@
-#include "refresh_ros2/bt_refresh_control_node.hpp"
+#include "self_adaptive_behavior_tree/bt_refresh_control_node.hpp"
 
 namespace ReFRESH_BT {
 void DeciderNode::halt() {

@@ -5,8 +5,6 @@
 #include <string>
 
 // ROS 2 headers
-#include <rclcpp/allocator/allocator_common.hpp>
-#include <rclcpp/executors.hpp>
 #include <rclcpp/rclcpp.hpp>
 
 #include "behaviortree_cpp_v3/action_node.h"

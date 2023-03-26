@@ -4,14 +4,14 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
-#include "behaviortree_ros2/action/sleep.hpp"
+#include "refresh_ros_msgs/action/sleep.hpp"
 
-#include "behaviortree_ros2/bt_action_node.hpp"
+#include "self_adaptive_behavior_tree/bt_action_node.hpp"
 
 class SleepActionServer : public rclcpp::Node
 {
 public:
-  using Sleep = behaviortree_ros2::action::Sleep;
+  using Sleep = refresh_ros_msgs::action::Sleep;
   using GoalHandleSleep = rclcpp_action::ServerGoalHandle<Sleep>;
 
   explicit SleepActionServer(const rclcpp::NodeOptions & options = rclcpp::NodeOptions())

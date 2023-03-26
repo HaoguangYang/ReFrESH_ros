@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(refresh_ros2)
+project(self_awareness_attachment)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -13,36 +13,22 @@ find_package(ament_cmake_auto REQUIRED)
 ament_auto_find_build_dependencies()
 
 # setup targets
-# generate library
-ament_auto_add_library(${PROJECT_NAME}_lib
-  src/bt_refresh_control_node.cpp
-  src/bt_refresh_module_node.cpp
-  src/bt_refresh_ros_action_node.cpp
-  include/refresh_ros2/bt_action_node.hpp
-  include/refresh_ros2/bt_service_node.hpp
-  include/refresh_ros2/bt_subscriber_node.hpp
-  include/refresh_ros2/bt_refresh_control_node.hpp
-  include/refresh_ros2/bt_refresh_module_node.hpp
-  include/refresh_ros2/bt_refresh_ros_action_node.hpp
-)
-
-# generate bt task engine node
-ament_auto_add_library(${PROJECT_NAME}_bt_task_engine SHARED
-  src/bt_task_engine.cpp
-)
-rclcpp_components_register_node(${PROJECT_NAME}_bt_task_engine
-  PLUGIN "ReFRESH_BT::BehaviorTreeTaskEngineNode"
-  EXECUTABLE ${PROJECT_NAME}_bt_task_engine_node
-)
-
 # generate ros2 node self awareness attachment
-ament_auto_add_library(${PROJECT_NAME}_self_awareness_lib SHARED
+ament_auto_add_library(${PROJECT_NAME}_lib SHARED
   src/refresh_self_awareness_attachment.cpp
 )
-rclcpp_components_register_node(${PROJECT_NAME}_self_awareness_lib
+rclcpp_components_register_node(${PROJECT_NAME}_lib
   PLUGIN "ReFRESH::ROS_NodeSelfAwarenessImpl"
-  EXECUTABLE ${PROJECT_NAME}_self_awareness_attachment
+  EXECUTABLE ${PROJECT_NAME}_node
 )
+
+ament_auto_add_library(${PROJECT_NAME}_plugins SHARED
+  src/msg_quality_attr_plugins/age_attr_generic.cpp
+  src/msg_quality_attr_plugins/age_attr_builtin_interfaces_msg_time.cpp
+  src/msg_quality_attr_plugins/age_attr_std_msgs_msg_header.cpp
+  src/msg_quality_attr_plugins/age_attr_nav_msgs_msg_odometry.cpp
+)
+pluginlib_export_plugin_description_file(self_awareness_attachment plugins.xml)
 
 # TESTS
 if(AMENT_ENABLE_TESTING)
@@ -55,12 +41,6 @@ if(AMENT_ENABLE_TESTING)
   # a copyright and license is added to all source files
   set(ament_cmake_cpplint_FOUND TRUE)
   ament_lint_auto_find_test_dependencies()
-
-  ament_auto_add_executable(sleep_server test/sleep_server.cpp)
-  
-  ament_auto_add_executable(test_client test/test_client.cpp)
-  
-  #ament_auto_add_executable(test_server test/test_server.cpp)
 endif()
 
 # INSTALL

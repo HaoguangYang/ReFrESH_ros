@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(refresh_ros2)
+project(self_adaptive_behavior_tree)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -18,12 +18,12 @@ ament_auto_add_library(${PROJECT_NAME}_lib
   src/bt_refresh_control_node.cpp
   src/bt_refresh_module_node.cpp
   src/bt_refresh_ros_action_node.cpp
-  include/refresh_ros2/bt_action_node.hpp
-  include/refresh_ros2/bt_service_node.hpp
-  include/refresh_ros2/bt_subscriber_node.hpp
-  include/refresh_ros2/bt_refresh_control_node.hpp
-  include/refresh_ros2/bt_refresh_module_node.hpp
-  include/refresh_ros2/bt_refresh_ros_action_node.hpp
+  include/self_adaptive_behavior_tree/bt_action_node.hpp
+  include/self_adaptive_behavior_tree/bt_service_node.hpp
+  include/self_adaptive_behavior_tree/bt_subscriber_node.hpp
+  include/self_adaptive_behavior_tree/bt_refresh_control_node.hpp
+  include/self_adaptive_behavior_tree/bt_refresh_module_node.hpp
+  include/self_adaptive_behavior_tree/bt_refresh_ros_action_node.hpp
 )
 
 # generate bt task engine node
@@ -33,15 +33,6 @@ ament_auto_add_library(${PROJECT_NAME}_bt_task_engine SHARED
 rclcpp_components_register_node(${PROJECT_NAME}_bt_task_engine
   PLUGIN "ReFRESH_BT::BehaviorTreeTaskEngineNode"
   EXECUTABLE ${PROJECT_NAME}_bt_task_engine_node
-)
-
-# generate ros2 node self awareness attachment
-ament_auto_add_library(${PROJECT_NAME}_self_awareness_lib SHARED
-  src/refresh_self_awareness_attachment.cpp
-)
-rclcpp_components_register_node(${PROJECT_NAME}_self_awareness_lib
-  PLUGIN "ReFRESH::ROS_NodeSelfAwarenessImpl"
-  EXECUTABLE ${PROJECT_NAME}_self_awareness_attachment
 )
 
 # TESTS

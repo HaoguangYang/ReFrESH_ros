@@ -1,109 +1,41 @@
-#ifndef REFRESH_EVALUATOR_NODE_HPP_
-#define REFRESH_EVALUATOR_NODE_HPP_
+#ifndef SELF_AWARENESS_ATTACHMENT_NODE_HPP_
+#define SELF_AWARENESS_ATTACHMENT_NODE_HPP_
 
 #include <algorithm>
 #include <pluginlib/class_loader.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp/serialization.hpp>
 
-#include "refresh_ros2/visibility_control.hpp"
 #include "refresh_ros_msgs/msg/module_connectivity.hpp"
 #include "refresh_ros_msgs/msg/module_cost.hpp"
 #include "refresh_ros_msgs/msg/module_request.hpp"
 #include "refresh_ros_msgs/msg/module_telemetry.hpp"
 #include "refresh_ros_msgs/srv/self_adaptive_module_estimate.hpp"
 
+// in-package headers
+#include "self_awareness_attachment/msg_quality_attr.hpp"
+#include "self_awareness_attachment/visibility_control.hpp"
+
+// YAML loader from string
+#include <yaml-cpp/yaml.h>
+
+using std::placeholders::_1;
+using std::placeholders::_2;
+
 using refresh_ros_msgs::msg::ModuleConnectivity;
 using refresh_ros_msgs::msg::ModuleCost;
 using refresh_ros_msgs::msg::ModuleRequest;
 using refresh_ros_msgs::msg::ModuleTelemetry;
 using refresh_ros_msgs::srv::SelfAdaptiveModuleEstimate;
-using std::placeholders::_1;
-using std::placeholders::_2;
 
 namespace ReFRESH {
-
-class MsgQualityAttr {
- public:
-  virtual void initialize(const std::string& msgType, const double& tolerance) {
-    serializer_ = std::make_unique<rclcpp::SerializationBase>(getSerializer(msgType));
-    tolerance_ = tolerance;
-    initialized_ = true;
-  };
-
-  static rclcpp::SerializationBase getSerializer(const std::string& msgType) {
-    auto ts_lib = rclcpp::get_typesupport_library(msgType, "rosidl_typesupport_cpp");
-    auto ts_handle = rclcpp::get_typesupport_handle(msgType, "rosidl_typesupport_cpp", *ts_lib);
-    return rclcpp::SerializationBase(ts_handle);
-  }
-
-  void deserializeMessage(const rclcpp::SerializedMessage& msgRaw, void* result) const {
-    serializer_->deserialize_message(&msgRaw, result);
-  }
-
-  static void deserializeMessage(const rclcpp::SerializedMessage& msgRaw,
-                                 const rclcpp::SerializationBase& serializer, void* result) {
-    serializer.deserialize_message(&msgRaw, result);
-  }
-
-  static void deserializeMessage(const rclcpp::SerializedMessage& msgRaw,
-                                 const std::string& msgType, void* result) {
-    getSerializer(msgType).deserialize_message(&msgRaw, result);
-  }
-
-  double normalize(const double& rawResult) const { return rawResult / tolerance_; }
-
-  /**
-   * @brief Evaluate message quality attribute based on a user-specified function.
-   *
-   * @param msgRaw Unserialized ROS message
-   * @param lastActive Timestamp of receiving the unserialized ROS message
-   * @return std::pair<double, bool> first element: cost to be returned; second element: whether the
-   * returned value is normalized w.r.t. tolerance.
-   */
-  virtual std::pair<double, bool> evaluate(const rclcpp::SerializedMessage& msgRaw,
-                                           const rclcpp::Time& lastActive) {
-    (void)msgRaw;
-    (void)lastActive;
-    return {0., true};
-  };
-
-  /**
-   * @brief Estimator specific to output topics, based on inputs from prescribed topics.
-   *
-   * @param msgRawArray All input and output messages
-   * @param msgTypeArray All input and output message types
-   * @param lastActiveArray Vector of timestamps that the messages are last active
-   * @param msgArrayMask Mask for incoming messages
-   * @return std::pair<double, bool> first element: cost to be returned; second element: whether the
-   * returned value is normalized w.r.t. tolerance.
-   */
-  virtual std::pair<double, bool> estimateOutput(
-      const std::vector<rclcpp::SerializedMessage>& msgRawArray,
-      const std::vector<std::string>& msgTypeArray,
-      const std::vector<rclcpp::Time>& lastActiveArray, const std::vector<bool>& msgArrayMask) {
-    (void)msgRawArray;
-    (void)msgTypeArray;
-    (void)lastActiveArray;
-    (void)msgArrayMask;
-    return {0., true};
-  };
-
-  virtual ~MsgQualityAttr(){};
-
- protected:
-  MsgQualityAttr(){};
-  bool initialized_ = false;
-  double tolerance_ = 1.0;
-  std::unique_ptr<rclcpp::SerializationBase> serializer_ = nullptr;
-};
 
 class TelemetryQos : public rclcpp::QoS {
  public:
   explicit TelemetryQos() : rclcpp::QoS(200){};
 };
 
-class REFRESH_ROS2_PUBLIC ROS_NodeSelfAwarenessImpl : public rclcpp::Node {
+class SELF_AWARENESS_ATTACHMENT_PUBLIC ROS_NodeSelfAwarenessImpl : public rclcpp::Node {
  public:
   explicit ROS_NodeSelfAwarenessImpl(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
@@ -146,6 +78,7 @@ class REFRESH_ROS2_PUBLIC ROS_NodeSelfAwarenessImpl : public rclcpp::Node {
   // to the zero-based index in the interconnect field, as constructed by topicNames_.
   std::vector<std::string> topicQualityAttrType_;
   std::vector<double> topicQualityTol_;
+  std::vector<std::string> topicQualityAttrCfg_;
   std::vector<int64_t> topicRef_;
 
   // node name to monitor
@@ -178,4 +111,4 @@ class REFRESH_ROS2_PUBLIC ROS_NodeSelfAwarenessImpl : public rclcpp::Node {
 
 }  // namespace ReFRESH
 
-#endif  // REFRESH_EVALUATOR_NODE_HPP_
+#endif  // SELF_AWARENESS_ATTACHMENT_NODE_HPP_

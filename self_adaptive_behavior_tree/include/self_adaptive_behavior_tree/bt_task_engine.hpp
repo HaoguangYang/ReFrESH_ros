@@ -6,13 +6,13 @@
 #include "behaviortree_cpp_v3/bt_factory.h"
 #include "behaviortree_cpp_v3/loggers/bt_zmq_publisher.h"
 #include "builtin_interfaces/msg/time.hpp"
-#include "refresh_ros2/bt_refresh_control_node.hpp"
-#include "refresh_ros2/bt_refresh_module_node.hpp"
-#include "refresh_ros2/bt_refresh_ros_action_node.hpp"
-#include "refresh_ros2/visibility_control.hpp"
 #include "refresh_ros_msgs/msg/module_request.hpp"
 #include "refresh_ros_msgs/msg/module_telemetry.hpp"
 #include "refresh_ros_msgs/srv/module_control.hpp"
+#include "self_adaptive_behavior_tree/bt_refresh_control_node.hpp"
+#include "self_adaptive_behavior_tree/bt_refresh_module_node.hpp"
+#include "self_adaptive_behavior_tree/bt_refresh_ros_action_node.hpp"
+#include "self_adaptive_behavior_tree/visibility_control.hpp"
 
 using std::placeholders::_1;
 using std::placeholders::_2;
@@ -104,7 +104,7 @@ class BehaviorTreeTaskEngine {
 /**
  * @brief Wrapper class around the functional implementation of a ROS component.
  */
-class REFRESH_ROS2_PUBLIC BehaviorTreeTaskEngineNode : public rclcpp::Node {
+class SELF_ADAPTIVE_BEHAVIOR_TREE_PUBLIC BehaviorTreeTaskEngineNode : public rclcpp::Node {
  public:
   explicit BehaviorTreeTaskEngineNode(const rclcpp::NodeOptions &options = rclcpp::NodeOptions())
       : rclcpp::Node("bt_task_engine", options) {
