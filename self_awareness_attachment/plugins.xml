@@ -11,4 +11,13 @@
     <class type="ReFRESH::AgeAttrTyped<nav_msgs::msg::Odometry>" base_class_type="ReFRESH::MsgQualityAttr">
         <description>Plugin to evaluate message staleness -- bind to nav_msgs/msg/Odometry</description>
     </class>
+    <class type="ReFRESH::StdevAttr" base_class_type="ReFRESH::MsgQualityAttr">
+        <description>Plugin to evaluate message standard deviation field</description>
+    </class>
+    <class type="ReFRESH::StdevAttrTyped<geometry_msgs::msg::PoseWithCovariance>" base_class_type="ReFRESH::MsgQualityAttr">
+        <description>Plugin to evaluate message standard deviation field -- bind to geometry_msgs/msg/PoseWithCovariance</description>
+    </class>
+    <class type="ReFRESH::StdevAttrTyped<geometry_msgs::msg::PoseWithCovarianceStamped>" base_class_type="ReFRESH::MsgQualityAttr">
+        <description>Plugin to evaluate message standard deviation field -- bind to geometry_msgs/msg/PoseWithCovarianceStamped</description>
+    </class>
 </library>

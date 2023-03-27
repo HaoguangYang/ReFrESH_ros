@@ -5,10 +5,13 @@
 #include <eigen3/Eigen/Eigenvalues>
 #include <type_traits>
 
+// base class
+#include "self_awareness_attachment/msg_quality_attr.hpp"
+
+// type pinning
 #include "geometry_msgs/msg/accel_with_covariance_stamped.hpp"
 #include "geometry_msgs/msg/pose_with_covariance_stamped.hpp"
 #include "geometry_msgs/msg/twist_with_covariance_stamped.hpp"
-#include "self_awareness_attachment/msg_quality_attr.hpp"
 
 // YAML deserialization
 #include <yaml-cpp/yaml.h>
@@ -17,16 +20,11 @@ using namespace Eigen;
 
 namespace ReFRESH {
 
-// compile-time struct: prepare to check for msg.header field
-DEFINE_MEMBER_CHECKER(variance)
-DEFINE_MEMBER_CHECKER(position_covariance)
-DEFINE_MEMBER_CHECKER(magnetic_field_covariance)
-
-template <class MsgT>
 class StdevAttr : public MsgQualityAttr {
  public:
   virtual void configure(rclcpp::Node* nodeHandle, const std::string& msgType,
                          const double& tolerance, const YAML::Node& config) override {
+    nh_ = nodeHandle;
     msgType_ = get_topic_type_from_string_type(msgType);
     serializer_ = std::make_unique<rclcpp::SerializationBase>(getSerializer(msgType));
     tolerance_ = tolerance;
@@ -36,40 +34,30 @@ class StdevAttr : public MsgQualityAttr {
 
   virtual std::pair<double, bool> evaluate(const rclcpp::SerializedMessage& msgRaw,
                                            const rclcpp::Time& lastActive) override {
-    MsgT msg = deserializeMessage(msgRaw);
-    // compile-time static type assertion and dispatch
-    if constexpr (std::is_same<typename MsgT::Type,
-                               geometry_msgs::msg::PoseWithCovarianceStamped::Type>::value) {
-      return {stdevMagnitude({msg.pose.covariance.begin(), msg.pose.covariance.end()}, tolerance_),
-              true};
-    } else if constexpr (std::is_same<
-                             typename MsgT::Type,
-                             geometry_msgs::msg::TwistWithCovarianceStamped::Type>::value) {
-      return {
-          stdevMagnitude({msg.twist.covariance.begin(), msg.twist.covariance.end()}, tolerance_),
-          true};
-    } else if constexpr (std::is_same<
-                             typename MsgT::Type,
-                             geometry_msgs::msg::AccelWithCovarianceStamped::Type>::value) {
-      return {
-          stdevMagnitude({msg.accel.covariance.begin(), msg.accel.covariance.end()}, tolerance_),
-          true};
-    } else if constexpr (HAS_MEMBER(typename MsgT::Type, position_covariance)) {
-      return {stdevMagnitude({msg.position_covariance.begin(), msg.position_covariance.end()},
-                             tolerance_),
-              true};
-    } else if constexpr (HAS_MEMBER(typename MsgT::Type, magnetic_field_covariance)) {
-      return {stdevMagnitude(
-                  {msg.magnetic_field_covariance.begin(), msg.magnetic_field_covariance.end()},
-                  tolerance_),
-              true};
-    } else if constexpr (HAS_MEMBER(typename MsgT::Type, variance)) {
-      return {stdevMagnitude(msg.variance, tolerance_), true};
-    } else {
-#pragma message \
-    "WARNING: message type does not have covariance-carrying objects. Looking up message.covariance."
-      return {stdevMagnitude({msg.covariance.begin(), msg.covariance.end()}, tolerance_), true};
+    (void)lastActive;
+    YAML::Node deserializedMsg = deserializeMessage(msgRaw);
+    if (deserializedMsg["covariance"]) {
+      auto v = deserializedMsg["covariance"].as<std::vector<double>>();
+      return {stdevMagnitude(v, tolerance_), true};
+    } else if (deserializedMsg["variance"]) {
+      return {stdevMagnitude(deserializedMsg["variance"].as<double>(), tolerance_), true};
+    } else if (deserializedMsg["pose"] && deserializedMsg["pose"]["covariance"]) {
+      auto v = deserializedMsg["pose"]["covariance"].as<std::vector<double>>();
+      return {stdevMagnitude(v, tolerance_), true};
+    } else if (deserializedMsg["twist"] && deserializedMsg["twist"]["covariance"]) {
+      auto v = deserializedMsg["twist"]["covariance"].as<std::vector<double>>();
+      return {stdevMagnitude(v, tolerance_), true};
+    } else if (deserializedMsg["accel"] && deserializedMsg["accel"]["covariance"]) {
+      auto v = deserializedMsg["accel"]["covariance"].as<std::vector<double>>();
+      return {stdevMagnitude(v, tolerance_), true};
+    } else if (deserializedMsg["position_covariance"]) {
+      auto v = deserializedMsg["position_covariance"].as<std::vector<double>>();
+      return {stdevMagnitude(v, tolerance_), true};
+    } else if (deserializedMsg["magnetic_field_covariance"]) {
+      auto v = deserializedMsg["magnetic_field_covariance"].as<std::vector<double>>();
+      return {stdevMagnitude(v, tolerance_), true};
     }
+    return {BOUNDARY_ACCEPT, true};
   }
 
  protected:
@@ -112,12 +100,59 @@ class StdevAttr : public MsgQualityAttr {
     VectorXd e = eig.eigenvalues();
     if (e.tail(1).value() < 0.) {
       // something went wrong with this covariance matrix. Do not use.
-      return HUGE_VAL_F32;
+      return REJECT;
     }
-    return std::sqrt(e.tail(1).value()) / tolerance_;
+    return std::sqrt(e.tail(1).value()) / tolStdev;
   }
 
   std::vector<bool> dimensionMask_ = {};
+};
+
+// compile-time struct: prepare to check for msg.header field
+DEFINE_MEMBER_CHECKER(variance)
+DEFINE_MEMBER_CHECKER(position_covariance)
+DEFINE_MEMBER_CHECKER(magnetic_field_covariance)
+
+template <class MsgT>
+class StdevAttrTyped : public StdevAttr {
+ public:
+  virtual std::pair<double, bool> evaluate(const rclcpp::SerializedMessage& msgRaw,
+                                           const rclcpp::Time& lastActive) override {
+    (void)lastActive;
+    MsgT msg;
+    deserializeMessage<MsgT>(msgRaw, msg);
+    // compile-time static type assertion and dispatch
+    if constexpr (std::is_same<typename MsgT::Type,
+                               geometry_msgs::msg::PoseWithCovarianceStamped::Type>::value) {
+      return {stdevMagnitude({msg.pose.covariance.begin(), msg.pose.covariance.end()}, tolerance_),
+              true};
+    } else if constexpr (std::is_same<
+                             typename MsgT::Type,
+                             geometry_msgs::msg::TwistWithCovarianceStamped::Type>::value) {
+      return {
+          stdevMagnitude({msg.twist.covariance.begin(), msg.twist.covariance.end()}, tolerance_),
+          true};
+    } else if constexpr (std::is_same<
+                             typename MsgT::Type,
+                             geometry_msgs::msg::AccelWithCovarianceStamped::Type>::value) {
+      return {
+          stdevMagnitude({msg.accel.covariance.begin(), msg.accel.covariance.end()}, tolerance_),
+          true};
+    } else if constexpr (HAS_MEMBER(typename MsgT::Type, position_covariance)) {
+      return {stdevMagnitude({msg.position_covariance.begin(), msg.position_covariance.end()},
+                             tolerance_),
+              true};
+    } else if constexpr (HAS_MEMBER(typename MsgT::Type, magnetic_field_covariance)) {
+      return {stdevMagnitude(
+                  {msg.magnetic_field_covariance.begin(), msg.magnetic_field_covariance.end()},
+                  tolerance_),
+              true};
+    } else if constexpr (HAS_MEMBER(typename MsgT::Type, variance)) {
+      return {stdevMagnitude(msg.variance, tolerance_), true};
+    } else {
+      return {stdevMagnitude({msg.covariance.begin(), msg.covariance.end()}, tolerance_), true};
+    }
+  }
 };
 
 }  // namespace ReFRESH

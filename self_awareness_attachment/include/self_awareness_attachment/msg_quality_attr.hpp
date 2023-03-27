@@ -126,6 +126,11 @@ class MsgQualityAttr {
   std::unique_ptr<rclcpp::SerializationBase> serializer_ = nullptr;
 };
 
+constexpr float REJECT = __FLT_MAX__;
+constexpr float BOUNDARY_ACCEPT = 1.;
+constexpr float BOUNDARY_REJECT = BOUNDARY_ACCEPT + __FLT_EPSILON__;
+constexpr float NEXT_TO_BOUNDARY_ACCEPT = BOUNDARY_ACCEPT - __FLT_EPSILON__;
+
 // helper macro to determine if a class has a specific member
 #define DEFINE_MEMBER_CHECKER(member)                                                            \
   template <typename T, typename V = bool>                                                       \
