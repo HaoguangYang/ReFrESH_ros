@@ -11,6 +11,13 @@
     <class type="ReFRESH::AgeAttrTyped<nav_msgs::msg::Odometry>" base_class_type="ReFRESH::MsgQualityAttr">
         <description>Plugin to evaluate message staleness -- bind to nav_msgs/msg/Odometry</description>
     </class>
+    <class type="ReFRESH::AgeAttrTyped<sensor_msgs::msg::Imu>" base_class_type="ReFRESH::MsgQualityAttr">
+        <description>Plugin to evaluate message staleness -- bind to sensor_msgs/msg/Imu</description>
+    </class>
+    <class type="ReFRESH::AgeAttrTyped<sensor_msgs::msg::NavSatFix>" base_class_type="ReFRESH::MsgQualityAttr">
+        <description>Plugin to evaluate message staleness -- bind to sensor_msgs/msg/NavSatFix</description>
+    </class>
+
     <class type="ReFRESH::StdevAttr" base_class_type="ReFRESH::MsgQualityAttr">
         <description>Plugin to evaluate message standard deviation field</description>
     </class>
@@ -19,5 +26,11 @@
     </class>
     <class type="ReFRESH::StdevAttrTyped<geometry_msgs::msg::PoseWithCovarianceStamped>" base_class_type="ReFRESH::MsgQualityAttr">
         <description>Plugin to evaluate message standard deviation field -- bind to geometry_msgs/msg/PoseWithCovarianceStamped</description>
+    </class>
+    <class type="ReFRESH::StdevAttrTyped<sensor_msgs::msg::Imu>" base_class_type="ReFRESH::MsgQualityAttr">
+        <description>Plugin to evaluate message standard deviation field -- bind to sensor_msgs/msg/Imu</description>
+    </class>
+    <class type="ReFRESH::StdevAttrTyped<nav_msgs::msg::Odometry>" base_class_type="ReFRESH::MsgQualityAttr">
+        <description>Plugin to evaluate message standard deviation field -- bind to nav_msgs/msg/Odometry</description>
     </class>
 </library>

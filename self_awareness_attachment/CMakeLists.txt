@@ -25,11 +25,15 @@ rclcpp_components_register_node(${PROJECT_NAME}_lib
 ament_auto_add_library(${PROJECT_NAME}_plugins SHARED
   src/msg_quality_attr_plugins/age_attr_generic.cpp
   src/msg_quality_attr_plugins/age_attr_builtin_interfaces_msg_time.cpp
+  src/msg_quality_attr_plugins/age_attr_sensor_msgs_msg_imu.cpp
+  src/msg_quality_attr_plugins/age_attr_sensor_msgs_msg_nav_sat_fix.cpp
   src/msg_quality_attr_plugins/age_attr_std_msgs_msg_header.cpp
   src/msg_quality_attr_plugins/age_attr_nav_msgs_msg_odometry.cpp
   src/msg_quality_attr_plugins/stdev_attr_generic.cpp
   src/msg_quality_attr_plugins/stdev_attr_geometry_msgs_msg_pose_with_covariance.cpp
   src/msg_quality_attr_plugins/stdev_attr_geometry_msgs_msg_pose_with_covariance_stamped.cpp
+  src/msg_quality_attr_plugins/stdev_attr_sensor_msgs_msg_imu.cpp
+  src/msg_quality_attr_plugins/stdev_attr_nav_msgs_msg_odometry.cpp
 )
 pluginlib_export_plugin_description_file(self_awareness_attachment plugins.xml)
 

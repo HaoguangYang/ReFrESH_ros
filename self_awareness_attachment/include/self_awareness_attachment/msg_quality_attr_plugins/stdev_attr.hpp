@@ -12,6 +12,8 @@
 #include "geometry_msgs/msg/accel_with_covariance_stamped.hpp"
 #include "geometry_msgs/msg/pose_with_covariance_stamped.hpp"
 #include "geometry_msgs/msg/twist_with_covariance_stamped.hpp"
+#include "nav_msgs/msg/odometry.hpp"
+#include "sensor_msgs/msg/imu.hpp"
 
 // YAML deserialization
 #include <yaml-cpp/yaml.h>
@@ -38,50 +40,54 @@ class StdevAttr : public MsgQualityAttr {
     YAML::Node deserializedMsg = deserializeMessage(msgRaw);
     if (deserializedMsg["covariance"]) {
       auto v = deserializedMsg["covariance"].as<std::vector<double>>();
-      return {stdevMagnitude(v, tolerance_), true};
+      return {stdevMagnitude(v, dimensionMask_, tolerance_), true};
     } else if (deserializedMsg["variance"]) {
-      return {stdevMagnitude(deserializedMsg["variance"].as<double>(), tolerance_), true};
+      return {stdevMagnitude(deserializedMsg["variance"].as<double>(), dimensionMask_, tolerance_),
+              true};
     } else if (deserializedMsg["pose"] && deserializedMsg["pose"]["covariance"]) {
       auto v = deserializedMsg["pose"]["covariance"].as<std::vector<double>>();
-      return {stdevMagnitude(v, tolerance_), true};
+      return {stdevMagnitude(v, dimensionMask_, tolerance_), true};
     } else if (deserializedMsg["twist"] && deserializedMsg["twist"]["covariance"]) {
       auto v = deserializedMsg["twist"]["covariance"].as<std::vector<double>>();
-      return {stdevMagnitude(v, tolerance_), true};
+      return {stdevMagnitude(v, dimensionMask_, tolerance_), true};
     } else if (deserializedMsg["accel"] && deserializedMsg["accel"]["covariance"]) {
       auto v = deserializedMsg["accel"]["covariance"].as<std::vector<double>>();
-      return {stdevMagnitude(v, tolerance_), true};
+      return {stdevMagnitude(v, dimensionMask_, tolerance_), true};
     } else if (deserializedMsg["position_covariance"]) {
       auto v = deserializedMsg["position_covariance"].as<std::vector<double>>();
-      return {stdevMagnitude(v, tolerance_), true};
+      return {stdevMagnitude(v, dimensionMask_, tolerance_), true};
     } else if (deserializedMsg["magnetic_field_covariance"]) {
       auto v = deserializedMsg["magnetic_field_covariance"].as<std::vector<double>>();
-      return {stdevMagnitude(v, tolerance_), true};
+      return {stdevMagnitude(v, dimensionMask_, tolerance_), true};
     }
     return {BOUNDARY_ACCEPT, true};
   }
 
  protected:
-  double stdevMagnitude(const double& cov, const double& tolStdev) const {
-    int nDimMasked = std::accumulate(dimensionMask_.begin(), dimensionMask_.end(), 0,
-                                     [](const int& a, const bool& b) { return b ? a + 1 : a; });
-    if (dimensionMask_.size() && nDimMasked) return 0.;
+  static double stdevMagnitude(const double& cov, const std::vector<bool>& mask,
+                               const double& tolStdev) {
+    int nDimMasked = std::reduce(mask.begin(), mask.end(), 0,
+                                 [](const int& a, const bool& b) { return b ? a : a + 1; });
+    if (mask.size() && nDimMasked) return 0.;
     return std::sqrt(cov) / tolStdev;
   }
 
-  double stdevMagnitude(const std::vector<double>& cov, const double& tolStdev) const {
-    const double* ptr = &cov[0];
+  static double stdevMagnitude(const std::vector<double>& cov, const std::vector<bool>& mask,
+                               const double& tolStdev) {
     int nDim = static_cast<int>(std::floor(std::sqrt(cov.size())));
-    int nDimMasked = std::accumulate(dimensionMask_.begin(), dimensionMask_.end(), 0,
-                                     [](const int& a, const bool& b) { return b ? a + 1 : a; });
+    int nDimMasked = std::reduce(mask.begin(), mask.end(), 0,
+                                 [](const int& a, const bool& b) { return b ? a : a + 1; });
     MatrixXd covMreshaped;
-    if (dimensionMask_.size() && nDimMasked) {
-      covMreshaped = MatrixXd::Zero(nDim - nDimMasked, nDim - nDimMasked);
+    if (mask.size() && nDimMasked) {
+      int remainingDim = nDim - nDimMasked;
+      if (remainingDim <= 0) return 0.;
+      covMreshaped = MatrixXd::Zero(remainingDim, remainingDim);
       // pack unmasked dimensions only
       int k = 0, l = 0, m = 0;
       for (int i = 0; i < nDim; i++) {
-        if (!dimensionMask_[i]) {
+        if (mask[i]) {
           for (int j = 0; j < nDim; j++) {
-            if (!dimensionMask_[j]) {
+            if (mask[j]) {
               covMreshaped(k, l) = cov[m];
               l++;
             }
@@ -94,7 +100,7 @@ class StdevAttr : public MsgQualityAttr {
         l = 0;
       }
     } else {
-      covMreshaped = Map<MatrixXd>(const_cast<double*>(ptr), nDim, nDim);
+      covMreshaped = Map<MatrixXd>(const_cast<double*>(&cov[0]), nDim, nDim);
     }
     SelfAdjointEigenSolver<MatrixXd> eig(covMreshaped);
     VectorXd e = eig.eigenvalues();
@@ -124,40 +130,148 @@ class StdevAttrTyped : public StdevAttr {
     // compile-time static type assertion and dispatch
     if constexpr (std::is_same<typename MsgT::Type,
                                geometry_msgs::msg::PoseWithCovarianceStamped::Type>::value) {
-      return {stdevMagnitude({msg.pose.covariance.begin(), msg.pose.covariance.end()}, tolerance_),
+      return {stdevMagnitude({msg.pose.covariance.begin(), msg.pose.covariance.end()},
+                             dimensionMask_, tolerance_),
               true};
     } else if constexpr (std::is_same<
                              typename MsgT::Type,
                              geometry_msgs::msg::TwistWithCovarianceStamped::Type>::value) {
-      return {
-          stdevMagnitude({msg.twist.covariance.begin(), msg.twist.covariance.end()}, tolerance_),
-          true};
+      return {stdevMagnitude({msg.twist.covariance.begin(), msg.twist.covariance.end()},
+                             dimensionMask_, tolerance_),
+              true};
     } else if constexpr (std::is_same<
                              typename MsgT::Type,
                              geometry_msgs::msg::AccelWithCovarianceStamped::Type>::value) {
-      return {
-          stdevMagnitude({msg.accel.covariance.begin(), msg.accel.covariance.end()}, tolerance_),
-          true};
+      return {stdevMagnitude({msg.accel.covariance.begin(), msg.accel.covariance.end()},
+                             dimensionMask_, tolerance_),
+              true};
     } else if constexpr (HAS_MEMBER(typename MsgT::Type, position_covariance)) {
       return {stdevMagnitude({msg.position_covariance.begin(), msg.position_covariance.end()},
-                             tolerance_),
+                             dimensionMask_, tolerance_),
               true};
     } else if constexpr (HAS_MEMBER(typename MsgT::Type, magnetic_field_covariance)) {
       return {stdevMagnitude(
                   {msg.magnetic_field_covariance.begin(), msg.magnetic_field_covariance.end()},
-                  tolerance_),
+                  dimensionMask_, tolerance_),
               true};
     } else if constexpr (HAS_MEMBER(typename MsgT::Type, variance)) {
-      return {stdevMagnitude(msg.variance, tolerance_), true};
+      return {stdevMagnitude(msg.variance, dimensionMask_, tolerance_), true};
     } else {
-      return {stdevMagnitude({msg.covariance.begin(), msg.covariance.end()}, tolerance_), true};
+      return {stdevMagnitude({msg.covariance.begin(), msg.covariance.end()}, dimensionMask_,
+                             tolerance_),
+              true};
     }
   }
 };
 
-}  // namespace ReFRESH
+// A special case for odometry
+template <>
+class StdevAttrTyped<nav_msgs::msg::Odometry> : public StdevAttr {
+ public:
+  virtual void configure(rclcpp::Node* nodeHandle, const std::string& msgType,
+                         const double& tolerance, const YAML::Node& config) override {
+    nh_ = nodeHandle;
+    msgType_ = get_topic_type_from_string_type(msgType);
+    serializer_ = std::make_unique<rclcpp::SerializationBase>(getSerializer(msgType));
+    // pose fields
+    tolerance_ = tolerance;
+    if (config["dimension_mask"]) dimensionMask_ = config["dimension_mask"].as<std::vector<bool>>();
+    // twist fields
+    if (config["twist_dimension_mask"]) {
+      twistMask_ = config["twist_dimension_mask"].as<std::vector<bool>>();
+    } else {
+      // mask out all twist components
+      twistMask_.resize(6, false);
+    }
+    if (config["twist_stdev_tolerance"])
+      twistCovTolerance_ = config["twist_stdev_tolerance"].as<double>();
+    configured_ = true;
+  }
 
-#include <pluginlib/class_list_macros.hpp>
-// PLUGINLIB_EXPORT_CLASS(ReFRESH::StdevAttr<nav_msgs::msg::Odometry>, ReFRESH::MsgQualityAttr)
+  virtual std::pair<double, bool> evaluate(const rclcpp::SerializedMessage& msgRaw,
+                                           const rclcpp::Time& lastActive) override {
+    (void)lastActive;
+    nav_msgs::msg::Odometry msg;
+    deserializeMessage<nav_msgs::msg::Odometry>(msgRaw, msg);
+    double poseStdevScore = stdevMagnitude({msg.pose.covariance.begin(), msg.pose.covariance.end()},
+                                           dimensionMask_, tolerance_);
+    if (twistCovTolerance_ == 0.) return {poseStdevScore, true};
+    double twistStdevScore = stdevMagnitude(
+        {msg.twist.covariance.begin(), msg.twist.covariance.end()}, twistMask_, twistCovTolerance_);
+    return {std::fmax(poseStdevScore, twistStdevScore), true};
+  }
+
+ protected:
+  double twistCovTolerance_ = 0.;
+  std::vector<bool> twistMask_ = {};
+};
+
+// A special case for imu
+template <>
+class StdevAttrTyped<sensor_msgs::msg::Imu> : public StdevAttr {
+ public:
+  virtual void configure(rclcpp::Node* nodeHandle, const std::string& msgType,
+                         const double& tolerance, const YAML::Node& config) override {
+    nh_ = nodeHandle;
+    msgType_ = get_topic_type_from_string_type(msgType);
+    serializer_ = std::make_unique<rclcpp::SerializationBase>(getSerializer(msgType));
+    // orientation fields
+    tolerance_ = tolerance;
+    if (config["dimension_mask"]) dimensionMask_ = config["dimension_mask"].as<std::vector<bool>>();
+    // twist fields
+    if (config["angular_velocity_dimension_mask"]) {
+      angularVelMask_ = config["angular_velocity_dimension_mask"].as<std::vector<bool>>();
+    } else {
+      // mask out all angular velocity components by default
+      angularVelMask_.resize(3, false);
+    }
+    if (config["angular_velocity_stdev_tolerance"])
+      angularVelCovTolerance_ = config["angular_velocity_stdev_tolerance"].as<double>();
+    // linear acceleration fields
+    if (config["linear_acceleration_dimension_mask"]) {
+      linearAccelMask_ = config["linear_acceleration_dimension_mask"].as<std::vector<bool>>();
+    } else {
+      // mask out all angular velocity components by default
+      linearAccelMask_.resize(3, false);
+    }
+    if (config["linear_acceleration_stdev_tolerance"])
+      linearAccelCovTolerance_ = config["linear_acceleration_stdev_tolerance"].as<double>();
+    configured_ = true;
+  }
+
+  virtual std::pair<double, bool> evaluate(const rclcpp::SerializedMessage& msgRaw,
+                                           const rclcpp::Time& lastActive) override {
+    (void)lastActive;
+    sensor_msgs::msg::Imu msg;
+    deserializeMessage<sensor_msgs::msg::Imu>(msgRaw, msg);
+    double orientationStdevScore =
+        stdevMagnitude({msg.orientation_covariance.begin(), msg.orientation_covariance.end()},
+                       dimensionMask_, tolerance_);
+    double angularVelStdevScore = 0.;
+    double linearAccelStdevScore = 0.;
+    if (angularVelCovTolerance_ > 0.) {
+      angularVelStdevScore = stdevMagnitude(
+          {msg.angular_velocity_covariance.begin(), msg.angular_velocity_covariance.end()},
+          angularVelMask_, angularVelCovTolerance_);
+    }
+    if (linearAccelCovTolerance_ > 0.) {
+      linearAccelStdevScore = stdevMagnitude(
+          {msg.linear_acceleration_covariance.begin(), msg.linear_acceleration_covariance.end()},
+          linearAccelMask_, linearAccelCovTolerance_);
+    }
+
+    return {
+        std::fmax(std::fmax(orientationStdevScore, angularVelStdevScore), linearAccelStdevScore),
+        true};
+  }
+
+ protected:
+  double angularVelCovTolerance_ = 0.;
+  std::vector<bool> angularVelMask_ = {};
+  double linearAccelCovTolerance_ = 0.;
+  std::vector<bool> linearAccelMask_ = {};
+};
+
+}  // namespace ReFRESH
 
 #endif  // STDEV_ATTR_PLUGIN_HPP_
