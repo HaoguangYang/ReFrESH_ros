@@ -76,6 +76,26 @@ class MsgQualityAttr {
     serializer_->deserialize_message(&msgRaw, (void*)&result);
   }
 
+  static YAML::Node findFieldByName(const YAML::Node& in, const std::string& fieldName) {
+    YAML::Node which = in;
+    assert(fieldName.length() != 0);
+    std::string fieldRemaining = fieldName;
+    std::string::size_type index = fieldRemaining.find('.');
+    while (index != std::string::npos) {
+      which = which[fieldRemaining.substr(0, index)];
+      fieldRemaining = fieldRemaining.substr(index + 1);
+      index = fieldRemaining.find('.');
+    }
+    return which;
+  }
+
+  // if field is provided, use field. Otherwise, exploit proper field
+  YAML::Node findField(const YAML::Node& in, const std::string& fieldName = "") const {
+    return (fieldName.length()) ? findFieldByName(in, fieldName) : findDefaultField(in);
+  }
+
+  virtual YAML::Node findDefaultField(const YAML::Node& in) const { return in; }
+
   double normalize(const double& rawResult) const { return rawResult / tolerance_; }
 
   /**

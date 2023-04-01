@@ -30,6 +30,7 @@ class StdevAttr : public MsgQualityAttr {
     msgType_ = get_topic_type_from_string_type(msgType);
     serializer_ = std::make_unique<rclcpp::SerializationBase>(getSerializer(msgType));
     tolerance_ = tolerance;
+    if (config["field"]) field_ = config["field"].as<std::string>();
     if (config["dimension_mask"]) dimensionMask_ = config["dimension_mask"].as<std::vector<bool>>();
     configured_ = true;
   }
@@ -38,29 +39,23 @@ class StdevAttr : public MsgQualityAttr {
                                            const rclcpp::Time& lastActive) override {
     (void)lastActive;
     YAML::Node deserializedMsg = deserializeMessage(msgRaw);
-    if (deserializedMsg["covariance"]) {
-      auto v = deserializedMsg["covariance"].as<std::vector<double>>();
-      return {stdevMagnitude(v, dimensionMask_, tolerance_), true};
-    } else if (deserializedMsg["variance"]) {
-      return {stdevMagnitude(deserializedMsg["variance"].as<double>(), dimensionMask_, tolerance_),
-              true};
-    } else if (deserializedMsg["pose"] && deserializedMsg["pose"]["covariance"]) {
-      auto v = deserializedMsg["pose"]["covariance"].as<std::vector<double>>();
-      return {stdevMagnitude(v, dimensionMask_, tolerance_), true};
-    } else if (deserializedMsg["twist"] && deserializedMsg["twist"]["covariance"]) {
-      auto v = deserializedMsg["twist"]["covariance"].as<std::vector<double>>();
-      return {stdevMagnitude(v, dimensionMask_, tolerance_), true};
-    } else if (deserializedMsg["accel"] && deserializedMsg["accel"]["covariance"]) {
-      auto v = deserializedMsg["accel"]["covariance"].as<std::vector<double>>();
-      return {stdevMagnitude(v, dimensionMask_, tolerance_), true};
-    } else if (deserializedMsg["position_covariance"]) {
-      auto v = deserializedMsg["position_covariance"].as<std::vector<double>>();
-      return {stdevMagnitude(v, dimensionMask_, tolerance_), true};
-    } else if (deserializedMsg["magnetic_field_covariance"]) {
-      auto v = deserializedMsg["magnetic_field_covariance"].as<std::vector<double>>();
-      return {stdevMagnitude(v, dimensionMask_, tolerance_), true};
-    }
-    return {BOUNDARY_ACCEPT, true};
+    YAML::Node target = findField(deserializedMsg, field_);
+    if (target.IsScalar())
+      return {stdevMagnitude(target.as<double>(), dimensionMask_, tolerance_), true};
+    else if (target)
+      return {stdevMagnitude(target.as<std::vector<double>>(), dimensionMask_, tolerance_), true};
+    else
+      return {BOUNDARY_ACCEPT, true};
+  }
+
+  virtual YAML::Node findDefaultField(const YAML::Node& in) const {
+    if (in["variance"]) return in["variance"];
+    if (in["pose"]["covariance"]) return in["pose"]["covariance"];
+    if (in["twist"]["covariance"]) return in["twist"]["covariance"];
+    if (in["accel"]["covariance"]) return in["accel"]["covariance"];
+    if (in["position_covariance"]) return in["position_covariance"];
+    if (in["magnetic_field_covariance"]) return in["magnetic_field_covariance"];
+    return in["covariance"];
   }
 
  protected:
@@ -112,6 +107,8 @@ class StdevAttr : public MsgQualityAttr {
   }
 
   std::vector<bool> dimensionMask_ = {};
+
+  std::string field_ = "";
 };
 
 // compile-time struct: prepare to check for msg.header field

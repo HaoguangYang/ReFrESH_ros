@@ -1,14 +1,17 @@
-#include "self_awareness_attachment/refresh_self_awareness_attachment.hpp"
+#include "self_awareness_attachment/modular_redundancy.hpp"
 
 namespace ReFRESH {
 
-ROS_NodeSelfAwarenessImpl::ROS_NodeSelfAwarenessImpl(const rclcpp::NodeOptions& options)
-    : rclcpp::Node("ros_node_self_awareness_attachment", options) {
+ROS_ModularRedundancyNode::ROS_ModularRedundancyNode(const rclcpp::NodeOptions& options)
+    : ROS_NodeSelfAwarenessImpl(options) {
+  // frequency at which the modular redundancy decision is run
   freq_ = this->declare_parameter("update_frequency", 10.0);
-  nodeToMonitor_ = this->declare_parameter("target_node", "test");
+  nodeToMonitor_ = this->get_name();
+  topicNs_ = this->declare_parameter("topic_namespaces", std::vector<std::string>{});
   topicNames_ = this->declare_parameter("topic_list.names", std::vector<std::string>{});
   topicTypes_ = this->declare_parameter("topic_list.msg_types", std::vector<std::string>{});
-  topicDir_ = this->declare_parameter("topic_list.is_inbound_topic", std::vector<bool>{});
+  // only in-bound topics are provided
+  topicDir_ = std::vector<bool>(topicNames_.size(), true);
   topicQualityAttrType_ =
       this->declare_parameter("topic_quality.attributes", std::vector<std::string>{});
   topicQualityTol_ = this->declare_parameter("topic_quality.tolerance", std::vector<double>{});
@@ -16,6 +19,7 @@ ROS_NodeSelfAwarenessImpl::ROS_NodeSelfAwarenessImpl(const rclcpp::NodeOptions& 
   topicQualityAttrCfg_ =
       this->declare_parameter("topic_quality.config", std::vector<std::string>{});
   topicRef_ = this->declare_parameter("topic_quality.topic_list_ref", std::vector<int64_t>{});
+  outputNs_ = this->declare_parameter("output_topic_namespace", "modular_redundancy_repub");
 
   if (topicNames_.size() != topicTypes_.size() || topicNames_.size() != topicDir_.size() ||
       topicNames_.size() == 0) {
@@ -31,41 +35,57 @@ ROS_NodeSelfAwarenessImpl::ROS_NodeSelfAwarenessImpl(const rclcpp::NodeOptions& 
         "within this node is not supported yet.");
   }
 
-  subArray_.reserve(topicNames_.size());
-  msgArray_.resize(topicNames_.size());
   for (size_t n = 0; n < topicNames_.size(); n++) {
-    recvStamp_.push_back(this->now());
-    subArray_.push_back(this->create_generic_subscription(
-        topicNames_[n], topicTypes_[n], rclcpp::SensorDataQoS(),
-        [&](const std::shared_ptr<rclcpp::SerializedMessage>& in) {
-          msgArray_[n] = *in;
-          recvStamp_[n] = this->now();
-        }));
+    mrPub_.push_back(this->create_generic_publisher(outputNs_ + topicNames_[n], topicTypes_[n],
+                                                    rclcpp::SystemDefaultsQoS()));
   }
+  publish_.resize(topicNs_.size() * topicNames_.size(), false);
+
+  // identical subscription into each provided namespace
+  subArray_.reserve(topicNs_.size() * topicNames_.size());
+  msgArray_.resize(topicNs_.size() * topicNames_.size());
+  for (size_t i = 0; i < topicNs_.size(); i++) {
+    const size_t offset = i * topicNames_.size();
+    for (size_t n = 0; n < topicNames_.size(); n++) {
+      recvStamp_.push_back(this->now());
+      subArray_.push_back(this->create_generic_subscription(
+          topicNames_[n], topicTypes_[n], rclcpp::SensorDataQoS(),
+          [&](const std::shared_ptr<rclcpp::SerializedMessage>& in) {
+            msgArray_[offset + n] = *in;
+            recvStamp_[offset + n] = this->now();
+            if (publish_[offset + n]) mrPub_[n]->publish(in);
+          }));
+    }
+  }
+
   resourceTelemetrySub_ = this->create_subscription<ModuleTelemetry>(
       "refresh/evaluators/resources", TelemetryQos(), [&](std::unique_ptr<ModuleTelemetry> msg) {
-        if (msg->module != this->nodeToMonitor_) return;
+        if (msg->module != nodeToMonitor_) return;
         resourceTelemetry_ = *msg;
       });
+
   moduleReqSub_ = this->create_subscription<ModuleRequest>(
       "refresh/deciders/modules/" + nodeToMonitor_, rclcpp::SensorDataQoS(),
-      std::bind(&ROS_NodeSelfAwarenessImpl::moduleRequestCallback, this, _1));
+      std::bind(&ROS_ModularRedundancyNode::moduleRequestCallback, this, _1));
+
   telemetryPub_ = this->create_publisher<ModuleTelemetry>("refresh/evaluators", TelemetryQos());
 
   pluginlib::ClassLoader<ReFRESH::MsgQualityAttr> qAttrLoader("ReFRESH", "ReFRESH::MsgQualityAttr");
-  qAttrLib_.reserve(topicQualityAttrType_.size());
-  for (size_t n = 0; n < topicQualityAttrType_.size(); n++) {
-    qAttrLib_.push_back(qAttrLoader.createSharedInstance(topicQualityAttrType_[n]));
-    qAttrLib_.back()->configure(this, topicTypes_[topicRef_[n]], topicQualityTol_[n],
-                                YAML::Load(topicQualityAttrCfg_[n]));
+  qAttrLib_.reserve(topicNs_.size() * topicQualityAttrType_.size());
+  for (size_t i = 0; i < topicNs_.size(); i++) {
+    for (size_t n = 0; n < topicQualityAttrType_.size(); n++) {
+      qAttrLib_.push_back(qAttrLoader.createSharedInstance(topicQualityAttrType_[n]));
+      qAttrLib_.back()->configure(this, topicTypes_[topicRef_[n]], topicQualityTol_[n],
+                                  YAML::Load(topicQualityAttrCfg_[n]));
+    }
   }
 
   updateTimer_ =
       this->create_wall_timer(std::chrono::microseconds((int64_t)(1.0e+6 / freq_)),
-                              std::bind(&ROS_NodeSelfAwarenessImpl::updateCallback, this));
+                              std::bind(&ROS_ModularRedundancyNode::updateCallback, this));
 }
 
-void ROS_NodeSelfAwarenessImpl::moduleRequestCallback(std::unique_ptr<ModuleRequest> msg) {
+void ROS_ModularRedundancyNode::moduleRequestCallback(std::unique_ptr<ModuleRequest> msg) {
   // obtain target state of nodeToMonitor_ -- perform EV or ES.
   if (msg->module != nodeToMonitor_)
     return;
@@ -74,63 +94,22 @@ void ROS_NodeSelfAwarenessImpl::moduleRequestCallback(std::unique_ptr<ModuleRequ
     estimationService_.reset();
     updateTimer_ =
         this->create_wall_timer(std::chrono::microseconds((int64_t)(1.0e+6 / freq_)),
-                                std::bind(&ROS_NodeSelfAwarenessImpl::updateCallback, this));
+                                std::bind(&ROS_ModularRedundancyNode::updateCallback, this));
+    // updateCallback will enable publishing of output.
   } else if (msg->request == ModuleRequest::TRANSITION_DEACTIVATE) {
     estimationService_ = this->create_service<SelfAdaptiveModuleEstimate>(
         "refresh/estimators/" + nodeToMonitor_,
-        std::bind(&ROS_NodeSelfAwarenessImpl::estimationCallback, this, _1, _2));
+        std::bind(&ROS_ModularRedundancyNode::estimationCallback, this, _1, _2));
     updateTimer_.reset();
+    // need to disable publishing of output
+    publish_.resize(topicNs_.size() * topicNames_.size(), false);
   }
 }
 
-ModuleConnectivity ROS_NodeSelfAwarenessImpl::reportConnectivity(
-    const bool& isInbound, const std::string& topicName, const std::string& topicType,
-    const rclcpp::Time& lastActive) const {
-  ModuleConnectivity ret;
-  if (isInbound) {
-    // incoming messages, get publishers (nodes other than nodeToMonitor_)
-    auto pubList = this->get_publishers_info_by_topic(topicName);
-    ret.last_active = lastActive;
-    ret.from_module = "";
-    for (const auto& item : pubList) {
-      if (ret.from_module.length()) ret.from_module += ", ";
-      ret.from_module += item.node_name();
-    }
-    ret.to_module = nodeToMonitor_;
-    ret.interface_name = topicName;
-    ret.interface_type = topicType;
-  } else {
-    // outgoing messages, get subscribers other than this self awareness node.
-    auto subList = this->get_subscriptions_info_by_topic(topicName);
-    ret.last_active = lastActive;
-    ret.from_module = nodeToMonitor_;
-    ret.to_module = "";
-    for (const auto& item : subList) {
-      if (item.node_name() == this->get_name()) continue;
-      if (ret.to_module.length()) ret.to_module += ", ";
-      ret.to_module = item.node_name();
-    }
-    ret.interface_name = topicName;
-    ret.interface_type = topicType;
-  }
-  return ret;
-}
-
-ModuleCost ROS_NodeSelfAwarenessImpl::reportPerformanceCost(
-    std::shared_ptr<ReFRESH::MsgQualityAttr>& attrClass,
-    const rclcpp::SerializedMessage& rawMsg, const unsigned int& index,
-    const rclcpp::Time& lastActive, const double& performanceTolerance) {
-  ModuleCost cost;
-  std::pair<double, bool> res = attrClass->evaluate(rawMsg, lastActive);
-  cost.connectivity_index = static_cast<int16_t>(index);
-  cost.tolerance = static_cast<float>(performanceTolerance);
-  cost.cost = static_cast<float>(res.first);
-  cost.cost_normalized = res.second;
-  return cost;
-}
+/* FIXME: WIP BELOW */
 
 // populate and publish telemetry
-void ROS_NodeSelfAwarenessImpl::updateCallback() {
+void ROS_ModularRedundancyNode::updateCallback() {
   auto pubMsg = std::make_unique<ModuleTelemetry>();
   pubMsg->stamp = this->now();
   pubMsg->module = nodeToMonitor_;
@@ -160,7 +139,7 @@ void ROS_NodeSelfAwarenessImpl::updateCallback() {
   telemetryPub_->publish(std::move(pubMsg));
 }
 
-void ROS_NodeSelfAwarenessImpl::estimationCallback(
+void ROS_ModularRedundancyNode::estimationCallback(
     const SelfAdaptiveModuleEstimate::Request::SharedPtr req,
     SelfAdaptiveModuleEstimate::Response::SharedPtr res) {
   if (req->module != nodeToMonitor_) {
@@ -208,4 +187,4 @@ void ROS_NodeSelfAwarenessImpl::estimationCallback(
 }  // namespace ReFRESH
 
 #include "rclcpp_components/register_node_macro.hpp"
-RCLCPP_COMPONENTS_REGISTER_NODE(ReFRESH::ROS_NodeSelfAwarenessImpl)
+RCLCPP_COMPONENTS_REGISTER_NODE(ReFRESH::ROS_ModularRedundancyNode)

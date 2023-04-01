@@ -40,7 +40,7 @@ class SELF_AWARENESS_ATTACHMENT_PUBLIC ROS_NodeSelfAwarenessImpl : public rclcpp
   explicit ROS_NodeSelfAwarenessImpl(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
  private:
-  void moduleRequestCallback(std::unique_ptr<ModuleRequest> msg);
+  virtual void moduleRequestCallback(std::unique_ptr<ModuleRequest> msg);
 
   bool isTargetNodeActive() {
     // Whether the node is running or not. ROS graph may involve some lags after a node shutting
@@ -52,17 +52,17 @@ class SELF_AWARENESS_ATTACHMENT_PUBLIC ROS_NodeSelfAwarenessImpl : public rclcpp
 
   ModuleConnectivity reportConnectivity(const bool& isInbound, const std::string& topicName,
                                         const std::string& topicType,
-                                        const rclcpp::Time& lastActive);
+                                        const rclcpp::Time& lastActive) const;
 
-  ModuleCost reportPerformanceCost(const std::shared_ptr<ReFRESH::MsgQualityAttr>& attrClass,
+  ModuleCost reportPerformanceCost(std::shared_ptr<ReFRESH::MsgQualityAttr>& attrClass,
                                    const rclcpp::SerializedMessage& rawMsg,
                                    const unsigned int& index, const rclcpp::Time& lastActive,
                                    const double& performanceTolerance);
 
   // populate and publish telemetry
-  void updateCallback();
+  virtual void updateCallback();
 
-  void estimationCallback(const SelfAdaptiveModuleEstimate::Request::SharedPtr req,
+  virtual void estimationCallback(const SelfAdaptiveModuleEstimate::Request::SharedPtr req,
                           SelfAdaptiveModuleEstimate::Response::SharedPtr res);
 
   // frequency at which the evaluation is run

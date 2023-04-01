@@ -34,6 +34,7 @@ ament_auto_add_library(${PROJECT_NAME}_plugins SHARED
   src/msg_quality_attr_plugins/stdev_attr_geometry_msgs_msg_pose_with_covariance_stamped.cpp
   src/msg_quality_attr_plugins/stdev_attr_sensor_msgs_msg_imu.cpp
   src/msg_quality_attr_plugins/stdev_attr_nav_msgs_msg_odometry.cpp
+  src/msg_quality_attr_plugins/field_value_generic.cpp
 )
 pluginlib_export_plugin_description_file(self_awareness_attachment plugins.xml)
 

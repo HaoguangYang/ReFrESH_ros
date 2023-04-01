@@ -17,6 +17,19 @@ namespace ReFRESH {
 
 class AgeAttr : public MsgQualityAttr {
  public:
+  virtual void configure(rclcpp::Node* nodeHandle, const std::string& msgType,
+                         const double& tolerance, const YAML::Node& config) override {
+    nh_ = nodeHandle;
+    msgType_ = get_topic_type_from_string_type(msgType);
+    serializer_ = std::make_unique<rclcpp::SerializationBase>(getSerializer(msgType));
+    tolerance_ = tolerance;
+    if (config["field"]) field_ = config["field"].as<std::string>();
+    if (config["offset_field"]) offsetField_ = config["offset_field"].as<std::string>();
+    if (config["offset_direction"])
+      offsetDir_ = (config["offset_direction"].as<int>()) >= 0 ? 1 : -1;
+    configured_ = true;
+  };
+
   virtual std::pair<double, bool> evaluate(const rclcpp::SerializedMessage& msgRaw,
                                            const rclcpp::Time& lastActive) override {
     rclcpp::Time tnow = nh_->now();
@@ -27,20 +40,40 @@ class AgeAttr : public MsgQualityAttr {
   }
 
  protected:
+  virtual YAML::Node findDefaultField(const YAML::Node& in) const override {
+    // default fields that time information may be stored
+    if (in["header"]["stamp"]) return in["header"]["stamp"];
+    if (in["stamp"]) return in["stamp"];
+    return in;
+  }
+
   unsigned long getStampNanosecs(const YAML::Node& in) const {
     const unsigned long SEC_TO_NANOSEC = 1000000000UL;
-    if (in["sec"] && in["nanosec"])
-      return in["sec"].as<unsigned long>() * SEC_TO_NANOSEC + in["nanosec"].as<unsigned long>();
-    else if (in["stamp"]["sec"] && in["stamp"]["nanosec"])
-      return in["stamp"]["sec"].as<unsigned long>() * SEC_TO_NANOSEC +
-             in["stamp"]["nanosec"].as<unsigned long>();
-    else if (in["header"]["stamp"]["sec"] && in["header"]["stamp"]["nanosec"]) {
-      return in["header"]["stamp"]["sec"].as<unsigned long>() * SEC_TO_NANOSEC +
-             in["header"]["stamp"]["nanosec"].as<unsigned long>();
+    unsigned long result = 0;
+    // if field is provided, use field. Otherwise, exploit proper field
+    auto target = findField(in, field_);
+    if (target["sec"] && target["nanosec"]) {
+      result = target["sec"].as<unsigned long>() * SEC_TO_NANOSEC +
+               target["nanosec"].as<unsigned long>();
     }
-    // otherwise
-    return 0;
+    // get offset value (positive)
+    if (offsetField_.length()) {
+      target = findField(in, offsetField_);
+      if (target) {
+        if (target["sec"] && target["nanosec"]) {
+          result -= offsetDir_ * (target["sec"].as<unsigned long>() * SEC_TO_NANOSEC +
+                                  target["nanosec"].as<unsigned long>());
+        } else {
+          result -= offsetDir_ * (static_cast<long int>(target.as<double>() * SEC_TO_NANOSEC));
+        }
+      }
+    }
+    return result;
   }
+
+  std::string field_ = "";
+  std::string offsetField_ = "";
+  int offsetDir_ = 1;
 };
 
 // compile-time struct: prepare to check for msg.header field
