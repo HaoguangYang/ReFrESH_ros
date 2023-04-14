@@ -115,17 +115,26 @@ void ROS_ModularRedundancyNode::updateCallback() {
   pubMsg->module = nodeToMonitor_;
   pubMsg->status = isTargetNodeActive() ? ModuleTelemetry::PRIMARY_STATE_ACTIVE
                                         : ModuleTelemetry::PRIMARY_STATE_INACTIVE;
-  // populate node inter-connectivity info
-  for (size_t n = 0; n < topicNames_.size(); n++) {
-    pubMsg->interconnect.push_back(
-        reportConnectivity(topicDir_[n], topicNames_[n], topicTypes_[n], recvStamp_[n]));
+  // populate node inter-connectivity info -- input (topicDir_ has input info only)
+  for (size_t i = 0; i < topicNs_.size(); i++) {
+    size_t base = i * topicNames_.size();
+    for (size_t n = 0; n < topicNames_.size(); n++) {
+      pubMsg->interconnect.push_back(reportConnectivity(topicDir_[n], topicNs_[i] + topicNames_[n],
+                                                        topicTypes_[n], recvStamp_[base + n]));
+    }
   }
 
-  // populate message quality attributes
+  // TODO: populate node inter-connectivity info -- output
+
+  // TODO: populate message quality attributes
   for (size_t n = 0; n < qAttrLib_.size(); n++) {
     pubMsg->performance_cost.push_back(reportPerformanceCost(
-        qAttrLib_[n], msgArray_[topicRef_[n]], topicRef_[n], recvStamp_[n], topicQualityTol_[n]));
+        qAttrLib_[n], msgArray_[topicRef_[n%...]], topicRef_[n%...], recvStamp_[topicRef_[n%...]], topicQualityTol_[n%...]));
   }
+
+  // TODO: Based on message quality attributes, determine publishing mask
+
+  // TODO: Based on publishing mask, determine message quality attributes for output
 
   // populate resource quality attributes from the received resource utilization telemetry
   size_t resourceInterconnectOffset = pubMsg->interconnect.size();
