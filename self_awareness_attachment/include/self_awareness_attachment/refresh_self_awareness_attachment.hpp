@@ -39,7 +39,7 @@ class SELF_AWARENESS_ATTACHMENT_PUBLIC ROS_NodeSelfAwarenessImpl : public rclcpp
  public:
   explicit ROS_NodeSelfAwarenessImpl(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
- private:
+ protected:
   virtual void moduleRequestCallback(std::unique_ptr<ModuleRequest> msg);
 
   bool isTargetNodeActive() {

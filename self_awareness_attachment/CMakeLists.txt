@@ -22,6 +22,14 @@ rclcpp_components_register_node(${PROJECT_NAME}_lib
   EXECUTABLE ${PROJECT_NAME}_node
 )
 
+ament_auto_add_library(modular_redundancy_lib SHARED
+  src/modular_redundancy.cpp
+)
+rclcpp_components_register_node(modular_redundancy_lib
+  PLUGIN "ReFRESH::ROS_ModularRedundancyNode"
+  EXECUTABLE modular_redundancy_node
+)
+
 ament_auto_add_library(${PROJECT_NAME}_plugins SHARED
   src/msg_quality_attr_plugins/age_attr_generic.cpp
   src/msg_quality_attr_plugins/age_attr_builtin_interfaces_msg_time.cpp

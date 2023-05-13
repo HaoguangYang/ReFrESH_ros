@@ -11,7 +11,7 @@ class SELF_AWARENESS_ATTACHMENT_PUBLIC ROS_ModularRedundancyNode
  public:
   explicit ROS_ModularRedundancyNode(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
- private:
+ protected:
   /* this module itself contains the self awareness attachment, therefore needs to also handle the
    * activation/deactivation of self.
    */
@@ -23,9 +23,11 @@ class SELF_AWARENESS_ATTACHMENT_PUBLIC ROS_ModularRedundancyNode
   virtual void estimationCallback(const SelfAdaptiveModuleEstimate::Request::SharedPtr req,
                           SelfAdaptiveModuleEstimate::Response::SharedPtr res) override;
 
+ private:
   std::vector<std::string> topicNs_;
   std::vector<bool> publish_;
-  std::vector<rclcpp::GenericPublisher> mrPub_;
+  std::vector<rclcpp::GenericPublisher::SharedPtr> mrPub_;
+  std::vector<rclcpp::Time> mrPubStamp_;
   std::string outputNs_;
 };
 

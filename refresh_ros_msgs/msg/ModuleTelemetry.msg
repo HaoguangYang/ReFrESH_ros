@@ -58,6 +58,8 @@ string  module
 # The state id value from the above definitions.
 uint8   status
 
+# Topology of topic interconnects
 ModuleConnectivity[] interconnect
+# Array of module costs. Each cost is associated with one entry in the interconnect.
 ModuleCost[]  performance_cost
 ModuleCost[]  resource_cost

@@ -38,6 +38,7 @@ ROS_ModularRedundancyNode::ROS_ModularRedundancyNode(const rclcpp::NodeOptions& 
   for (size_t n = 0; n < topicNames_.size(); n++) {
     mrPub_.push_back(this->create_generic_publisher(outputNs_ + topicNames_[n], topicTypes_[n],
                                                     rclcpp::SystemDefaultsQoS()));
+    mrPubStamp_.push_back(this->now());
   }
   publish_.resize(topicNs_.size() * topicNames_.size(), false);
 
@@ -50,10 +51,11 @@ ROS_ModularRedundancyNode::ROS_ModularRedundancyNode(const rclcpp::NodeOptions& 
       recvStamp_.push_back(this->now());
       subArray_.push_back(this->create_generic_subscription(
           topicNames_[n], topicTypes_[n], rclcpp::SensorDataQoS(),
+          // Lambda function for publishing the relayed message based on masks
           [&](const std::shared_ptr<rclcpp::SerializedMessage>& in) {
             msgArray_[offset + n] = *in;
             recvStamp_[offset + n] = this->now();
-            if (publish_[offset + n]) mrPub_[n]->publish(in);
+            if (publish_[offset + n]) mrPub_[n]->publish(*in);
           }));
     }
   }
@@ -106,8 +108,6 @@ void ROS_ModularRedundancyNode::moduleRequestCallback(std::unique_ptr<ModuleRequ
   }
 }
 
-/* FIXME: WIP BELOW */
-
 // populate and publish telemetry
 void ROS_ModularRedundancyNode::updateCallback() {
   auto pubMsg = std::make_unique<ModuleTelemetry>();
@@ -119,22 +119,66 @@ void ROS_ModularRedundancyNode::updateCallback() {
   for (size_t i = 0; i < topicNs_.size(); i++) {
     size_t base = i * topicNames_.size();
     for (size_t n = 0; n < topicNames_.size(); n++) {
-      pubMsg->interconnect.push_back(reportConnectivity(topicDir_[n], topicNs_[i] + topicNames_[n],
+      pubMsg->interconnect.push_back(reportConnectivity(true, topicNs_[i] + topicNames_[n],
                                                         topicTypes_[n], recvStamp_[base + n]));
     }
   }
 
-  // TODO: populate node inter-connectivity info -- output
-
-  // TODO: populate message quality attributes
-  for (size_t n = 0; n < qAttrLib_.size(); n++) {
-    pubMsg->performance_cost.push_back(reportPerformanceCost(
-        qAttrLib_[n], msgArray_[topicRef_[n%...]], topicRef_[n%...], recvStamp_[topicRef_[n%...]], topicQualityTol_[n%...]));
+  // populate node inter-connectivity info -- output
+  for (size_t n = 0; n < topicNames_.size(); n++) {
+    pubMsg->interconnect.push_back(
+        reportConnectivity(false, outputNs_ + topicNames_[n], topicTypes_[n], mrPubStamp_[n]));
   }
 
-  // TODO: Based on message quality attributes, determine publishing mask
+  // populate message quality attributes for inputs
+  for (size_t i = 0; i < topicNs_.size(); i++) {
+    for (size_t j = 0; j < topicQualityAttrType_.size(); j++) {
+      // N.B. topicRef_[n_wrapped] is per namespace. Need to extend to the entire subscribed topics
+      // later.
+      pubMsg->performance_cost.push_back(
+          reportPerformanceCost(qAttrLib_[i], msgArray_[topicRef_[j]], topicRef_[j],
+                                recvStamp_[topicRef_[j]], topicQualityTol_[j]));
+    }
+  }
 
-  // TODO: Based on publishing mask, determine message quality attributes for output
+  // Based on message quality attributes, determine publishing mask
+  std::vector<size_t> best_ind(topicNames_.size());
+  std::vector<float> best_quality_attr_normalized(topicNames_.size());
+  // circle through each cluster of subscribed topics
+  for (size_t i = 0; i < topicNs_.size(); i++) {
+    // circle through each attribute of the topic cluster
+    for (size_t j = 0; j < topicQualityAttrType_.size(); j++) {
+      size_t cost_ind = i * topicQualityAttrType_.size() + j;
+      auto cost = &(pubMsg->performance_cost[cost_ind]);
+      // N.B. topicRef_[n_wrapped] (cost.connectivity_index) is still per namespace
+      size_t topic_ind = cost->connectivity_index;
+      // if cost_normalized not there, calculate it.
+      float cost_norm = cost->cost_normalized ? cost->cost : cost->cost / cost->tolerance;
+      if (cost->cost_normalized < best_quality_attr_normalized[topic_ind]) {
+        best_ind[topic_ind] = i;
+        best_quality_attr_normalized[topic_ind] = cost_norm;
+      }
+    }
+  }
+  for (size_t i = 0; i < topicNs_.size(); i++) {
+    for (size_t j = 0; j < topicNames_.size(); j++) {
+      publish_[i * topicNames_.size() + j] =
+          best_ind[j] == i;  // && best_quality_attr_normalized[j] <= BOUNDARY_ACCEPT;
+    }
+  }
+
+  // N.B. topicRef_[n_wrapped] (cost.connectivity_index) is still per namespace. Fix it here.
+  size_t ind = 0;
+  for (size_t i = 0; i < topicNs_.size(); i++) {
+    size_t offset = i * topicNames_.size();
+    for (size_t j = 0; j < topicQualityAttrType_.size(); j++)
+      pubMsg->performance_cost[ind++].connectivity_index += offset;
+  }
+  // Based on publishing mask, determine message quality attributes for outputs
+  for (size_t i = 0; i < topicQualityAttrType_.size(); i++) {
+    size_t attr_ind = best_ind[topicRef_[i]] * topicQualityAttrType_.size() + i;
+    pubMsg->performance_cost.push_back(pubMsg->performance_cost[attr_ind]);
+  }
 
   // populate resource quality attributes from the received resource utilization telemetry
   size_t resourceInterconnectOffset = pubMsg->interconnect.size();
